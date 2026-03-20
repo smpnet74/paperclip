@@ -148,10 +148,18 @@ async function ensureKiroSkillsInjected(
         }
       }
 
+      // Escape YAML values to handle colons, quotes, newlines
+      const escapeYaml = (val: string): string => {
+        if (/[:\n"'#]/.test(val) || val.startsWith(" ") || val.endsWith(" ")) {
+          return `"${val.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
+        }
+        return val;
+      };
+
       // Build SKILL.md with YAML frontmatter
       const kiroSkillMd = `---
-name: ${entry.name}
-description: ${description}
+name: ${escapeYaml(entry.name)}
+description: ${escapeYaml(description)}
 ---
 
 ${skillContent}
@@ -388,7 +396,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
     const proc = await runChildProcess(runId, command, args, {
       cwd,
-      env,
+      env: runtimeEnv,
       stdin: prompt,
       timeoutSec,
       graceSec,
@@ -411,7 +419,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       };
     }
 
-    const resolvedSessionId = activeSessionId;
+    // For fresh runs that succeed, generate a session ID so subsequent runs can resume.
+    // Kiro resumes by cwd match, so the ID is just a handle for Paperclip's session tracking.
+    const resolvedSessionId =
+      activeSessionId ?? ((attempt.proc.exitCode ?? 0) === 0 ? runId : null);
     const resolvedSessionParams = resolvedSessionId
       ? ({
           sessionId: resolvedSessionId,
