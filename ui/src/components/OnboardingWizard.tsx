@@ -814,6 +814,12 @@ export function OnboardingWizard() {
                             desc: "Local Cursor agent"
                           },
                           {
+                            value: "kiro_local" as const,
+                            label: "Kiro",
+                            icon: Terminal,
+                            desc: "Local Kiro agent"
+                          },
+                          {
                             value: "openclaw_gateway" as const,
                             label: "OpenClaw Gateway",
                             icon: Bot,

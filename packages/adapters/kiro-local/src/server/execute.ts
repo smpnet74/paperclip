@@ -26,6 +26,9 @@ import { parseKiroOutput, isKiroUnknownSessionError } from "./parse.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
+/** Marker file written to Paperclip-managed skill directories for safe cleanup. */
+const PAPERCLIP_MANAGED_MARKER = ".paperclip-managed";
+
 /**
  * Kiro skills home directory.
  * Kiro expects skills at ~/.kiro/skills/<skill-name>/SKILL.md
@@ -90,8 +93,20 @@ async function ensureKiroSkillsInjected(
   for (const entry of skillsEntries) {
     const skillDir = path.join(skillsHome, entry.name);
     const skillFile = path.join(skillDir, "SKILL.md");
+    const managedMarker = path.join(skillDir, PAPERCLIP_MANAGED_MARKER);
 
     try {
+      // Skip if a user-owned skill already exists at this path
+      const skillExists = await fs.stat(skillFile).then(() => true).catch(() => false);
+      const isManaged = await fs.stat(managedMarker).then(() => true).catch(() => false);
+      if (skillExists && !isManaged) {
+        await onLog(
+          "stderr",
+          `[paperclip] Skipping Kiro skill "${entry.name}" — ${skillDir} already exists and is not Paperclip-managed\n`,
+        );
+        continue;
+      }
+
       // Read the skill's markdown content
       const skillContent = await readPaperclipSkillMarkdown(__moduleDir, entry.name);
       if (!skillContent) {
@@ -103,30 +118,21 @@ async function ensureKiroSkillsInjected(
       }
 
       // Check if we need to update the file
-      let needsWrite = true;
-      try {
-        const existing = await fs.readFile(skillFile, "utf8");
-        // Extract the body from existing file (after YAML frontmatter)
-        const bodyMatch = existing.match(/^---\s*\n[\s\S]*?\n---\s*\n([\s\S]*)$/);
-        const existingBody = bodyMatch ? bodyMatch[1].trim() : "";
-        const newBody = skillContent.trim();
-
-        // Only write if content has changed
-        if (existingBody === newBody) {
-          needsWrite = false;
+      if (isManaged) {
+        try {
+          const existing = await fs.readFile(skillFile, "utf8");
+          const bodyMatch = existing.match(/^---\s*\n[\s\S]*?\n---\s*\n([\s\S]*)$/);
+          const existingBody = bodyMatch ? bodyMatch[1].trim() : "";
+          if (existingBody === skillContent.trim()) continue;
+        } catch {
+          // Can't read — rewrite
         }
-      } catch {
-        // File doesn't exist or can't be read - needs write
-        needsWrite = true;
       }
-
-      if (!needsWrite) continue;
 
       // Create the skill directory
       await fs.mkdir(skillDir, { recursive: true });
 
       // Extract a description from the skill content for YAML frontmatter
-      // Use the first heading or first non-empty line as description
       const lines = skillContent.split("\n").filter((line) => line.trim());
       let description = entry.name;
       for (const line of lines) {
@@ -135,7 +141,6 @@ async function ensureKiroSkillsInjected(
           break;
         }
       }
-      // Fallback to first non-empty line if no heading found
       if (description === entry.name && lines.length > 0) {
         const firstLine = lines[0].trim();
         if (firstLine.length > 0 && firstLine.length < 100) {
@@ -153,6 +158,7 @@ ${skillContent}
 `;
 
       await fs.writeFile(skillFile, kiroSkillMd, "utf8");
+      await fs.writeFile(managedMarker, `${entry.name}\n`, "utf8");
       await onLog(
         "stderr",
         `[paperclip] Injected Kiro skill: ${entry.name}\n`,
@@ -184,11 +190,10 @@ async function cleanupKiroSkills(
   for (const entry of skillsEntries) {
     const skillDir = path.join(skillsHome, entry.name);
     try {
-      // Check if this is a Paperclip-injected skill by reading the SKILL.md
-      const skillFile = path.join(skillDir, "SKILL.md");
-      const content = await fs.readFile(skillFile, "utf8");
-      // Check if it has our YAML frontmatter format
-      if (content.match(/^---\s*\nname:\s*\S+/m)) {
+      // Only delete skills we own (have a managed marker)
+      const managedMarker = path.join(skillDir, PAPERCLIP_MANAGED_MARKER);
+      const isManaged = await fs.stat(managedMarker).then(() => true).catch(() => false);
+      if (isManaged) {
         await fs.rm(skillDir, { recursive: true, force: true });
         await onLog(
           "stderr",
@@ -395,6 +400,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
   const toResult = (
     attempt: { proc: { exitCode: number | null; signal: string | null; timedOut: boolean; stdout: string; stderr: string } },
+    activeSessionId: string | null,
   ): AdapterExecutionResult => {
     if (attempt.proc.timedOut) {
       return {
@@ -405,7 +411,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       };
     }
 
-    const resolvedSessionId = sessionId ?? runtimeSessionId ?? runtime.sessionId ?? null;
+    const resolvedSessionId = activeSessionId;
     const resolvedSessionParams = resolvedSessionId
       ? ({
           sessionId: resolvedSessionId,
@@ -453,10 +459,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         `[paperclip] Kiro session "${sessionId}" is stale or unknown, retrying with a fresh session.\n`,
       );
       const retry = await runAttempt(null);
-      return toResult(retry);
+      return toResult(retry, null);
     }
 
-    return toResult(initial);
+    return toResult(initial, sessionId);
   } finally {
     // Clean up injected skills after execution
     await cleanupKiroSkills(onLog);

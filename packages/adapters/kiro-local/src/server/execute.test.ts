@@ -150,6 +150,8 @@ describe("execute", () => {
       await execute(contextWithSession);
 
       const callArgs = vi.mocked(runChildProcess).mock.calls[0];
+      const args = callArgs[2] as string[];
+      expect(args).toContain("--resume");
       expect(callArgs[3]).toMatchObject({
         timeoutSec: 0,
         graceSec: 15,
