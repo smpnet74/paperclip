@@ -1,9 +1,7 @@
 import type { AdapterConfigFieldsProps } from "../types";
 import {
   Field,
-  ToggleField,
   DraftInput,
-  help,
 } from "../../components/agent-config-primitives";
 import { ChoosePathButton } from "../../components/PathInstructionsModal";
 import { LocalWorkspaceRuntimeFields } from "../local-workspace-runtime-fields";
@@ -24,9 +22,6 @@ export function KiroLocalConfigFields({
   mark,
   models,
 }: AdapterConfigFieldsProps) {
-  const bypassEnabled =
-    config.dangerouslyBypassApprovalsAndSandbox === true || config.dangerouslyBypassSandbox === true;
-
   return (
     <>
       <Field label="Agent instructions file" hint={instructionsFileHint}>
@@ -53,38 +48,6 @@ export function KiroLocalConfigFields({
           <ChoosePathButton />
         </div>
       </Field>
-      <ToggleField
-        label="Bypass sandbox"
-        hint={help.dangerouslyBypassSandbox}
-        checked={
-          isCreate
-            ? values!.dangerouslyBypassSandbox
-            : eff(
-                "adapterConfig",
-                "dangerouslyBypassApprovalsAndSandbox",
-                bypassEnabled,
-              )
-        }
-        onChange={(v) =>
-          isCreate
-            ? set!({ dangerouslyBypassSandbox: v })
-            : mark("adapterConfig", "dangerouslyBypassApprovalsAndSandbox", v)
-        }
-      />
-      <ToggleField
-        label="Enable search"
-        hint={help.search}
-        checked={
-          isCreate
-            ? values!.search
-            : eff("adapterConfig", "search", !!config.search)
-        }
-        onChange={(v) =>
-          isCreate
-            ? set!({ search: v })
-            : mark("adapterConfig", "search", v)
-        }
-      />
       <LocalWorkspaceRuntimeFields
         isCreate={isCreate}
         values={values}
