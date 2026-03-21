@@ -21,7 +21,7 @@ vi.mock("@paperclipai/adapter-utils/server-utils", async () => {
   };
 });
 
-// Mock the parse module (resolved relative to this test file)
+// Mock the parse module at its source path so vitest intercepts execute.ts's internal import
 vi.mock("../../../packages/adapters/kiro-local/src/server/parse.js", () => ({
   parseKiroOutput: vi.fn((stdout: string, stderr: string) => ({
     summary: stdout.trim(),
@@ -33,9 +33,8 @@ vi.mock("../../../packages/adapters/kiro-local/src/server/parse.js", () => ({
   ),
 }));
 
-import { execute } from "@paperclipai/adapter-kiro-local/server";
+import { execute, isKiroUnknownSessionError } from "@paperclipai/adapter-kiro-local/server";
 import { runChildProcess } from "@paperclipai/adapter-utils/server-utils";
-import { isKiroUnknownSessionError } from "../../../packages/adapters/kiro-local/src/server/parse.js";
 
 function mockResult(overrides: Partial<RunProcessResult> = {}): RunProcessResult {
   return {

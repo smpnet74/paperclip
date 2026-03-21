@@ -26,6 +26,9 @@ import { parseKiroOutput, isKiroUnknownSessionError } from "./parse.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
+/** Options for Kiro skill injection and cleanup. */
+export type KiroSkillsOptions = { skillsHome?: string; moduleDir?: string };
+
 /** Marker file written to Paperclip-managed skill directories for safe cleanup. */
 const PAPERCLIP_MANAGED_MARKER = ".paperclip-managed";
 
@@ -62,7 +65,7 @@ function kiroSkillsHome(): string {
  */
 export async function ensureKiroSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
-  options?: { skillsHome?: string; moduleDir?: string },
+  options?: KiroSkillsOptions,
 ): Promise<void> {
   const moduleDir = options?.moduleDir ?? __moduleDir;
   const skillsEntries = await listPaperclipSkillEntries(moduleDir);
@@ -192,7 +195,7 @@ ${skillContent}
  */
 export async function cleanupKiroSkills(
   onLog: AdapterExecutionContext["onLog"],
-  options?: { skillsHome?: string; moduleDir?: string },
+  options?: KiroSkillsOptions,
 ): Promise<void> {
   const moduleDir = options?.moduleDir ?? __moduleDir;
   const skillsEntries = await listPaperclipSkillEntries(moduleDir);
