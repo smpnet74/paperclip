@@ -16,7 +16,7 @@ import { test, expect, type Page } from "@playwright/test";
  *   /:companyPrefix/agents/:urlKey/configuration
  */
 
-const PORT = process.env.PAPERCLIP_E2E_PORT ?? 3200;
+const PORT = process.env.PAPERCLIP_E2E_PORT ?? 3100;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 const KIRO_MODELS = [
