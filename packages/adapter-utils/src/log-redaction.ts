@@ -5,15 +5,15 @@ export const REDACTED_HOME_PATH_USER = "~";
 const HOME_PATH_PATTERNS = [
   {
     regex: /\/Users\/[^/\\\s]+/g,
-    replace: "~",
+    replace: REDACTED_HOME_PATH_USER,
   },
   {
     regex: /\/home\/[^/\\\s]+/g,
-    replace: "~",
+    replace: REDACTED_HOME_PATH_USER,
   },
   {
     regex: /([A-Za-z]:\\Users\\)[^\\/\s]+/g,
-    replace: "$1~",
+    replace: `$1${REDACTED_HOME_PATH_USER}`,
   },
 ] as const;
 
