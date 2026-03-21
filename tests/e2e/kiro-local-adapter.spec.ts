@@ -56,7 +56,8 @@ async function selectKiroAdapter(page: Page) {
   const kiroItem = page.locator("button", { hasText: "Kiro (local)" }).first();
   await expect(kiroItem).toBeVisible({ timeout: 5_000 });
   await kiroItem.click();
-  await page.waitForTimeout(500);
+  // Wait for adapter form to re-render after selection (CI can be slow)
+  await page.waitForTimeout(1_500);
 }
 
 test.describe("kiro_local adapter — Agent Creation (New Agent page)", () => {
@@ -93,7 +94,7 @@ test.describe("kiro_local adapter — Agent Creation (New Agent page)", () => {
     await selectKiroAdapter(page);
 
     // Working directory should be visible
-    await expect(page.locator("text=Working directory").first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("text=Working directory").first()).toBeVisible({ timeout: 10_000 });
 
     // Agent instructions file should be visible
     await expect(page.locator("text=Agent instructions file").first()).toBeVisible();
@@ -210,17 +211,20 @@ test.describe("kiro_local adapter — Agent Creation (New Agent page)", () => {
     await selectKiroAdapter(page);
     await page.waitForTimeout(500);
 
-    // Fill agent name
+    // Fill agent name (wait for form to be ready after adapter switch)
     const nameInput = page.locator('input[placeholder="Agent name"]');
+    await expect(nameInput).toBeVisible({ timeout: 10_000 });
     await nameInput.fill(agentName);
 
     // Fill working directory
     const cwdInput = page.locator('input[placeholder="/path/to/project"]').first();
+    await expect(cwdInput).toBeVisible({ timeout: 10_000 });
     await cwdInput.fill("/tmp/kiro-test");
     await cwdInput.blur();
 
     // Fill instructions file
     const instrInput = page.locator('input[placeholder="/absolute/path/to/AGENTS.md"]').first();
+    await expect(instrInput).toBeVisible({ timeout: 10_000 });
     await instrInput.fill("/tmp/kiro-test/AGENTS.md");
     await instrInput.blur();
 
