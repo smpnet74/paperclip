@@ -528,6 +528,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                     nextValues.model = DEFAULT_CURSOR_LOCAL_MODEL;
                   } else if (t === "opencode_local") {
                     nextValues.model = "";
+                  } else if (t === "kiro_local") {
+                    nextValues.model = "auto";
                   }
                   set!(nextValues);
                 } else {
@@ -544,11 +546,17 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                             ? DEFAULT_GEMINI_LOCAL_MODEL
                           : t === "cursor"
                             ? DEFAULT_CURSOR_LOCAL_MODEL
+                          : t === "kiro_local"
+                            ? "auto"
                           : "",
-                      effort: "",
-                      modelReasoningEffort: "",
-                      variant: "",
-                      mode: "",
+                      // Only include effort/mode/variant/modelReasoningEffort blanks for
+                      // adapters that actually use these fields — kiro_local does not.
+                      ...(t !== "kiro_local" ? {
+                        effort: "",
+                        modelReasoningEffort: "",
+                        variant: "",
+                        mode: "",
+                      } : {}),
                       ...(t === "codex_local"
                         ? {
                             dangerouslyBypassApprovalsAndSandbox:

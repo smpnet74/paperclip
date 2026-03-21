@@ -213,6 +213,8 @@ export function OnboardingWizard() {
       ? "agent"
       : adapterType === "opencode_local"
       ? "opencode"
+      : adapterType === "kiro_local"
+      ? "kiro-cli"
       : "claude");
 
   useEffect(() => {
@@ -857,6 +859,10 @@ export function OnboardingWizard() {
                                 }
                                 return;
                               }
+                              if (nextType === "kiro_local") {
+                                setModel("auto");
+                                return;
+                              }
                               setModel("");
                             }}
                           >
@@ -880,7 +886,8 @@ export function OnboardingWizard() {
                     adapterType === "gemini_local" ||
                     adapterType === "opencode_local" ||
                     adapterType === "pi_local" ||
-                    adapterType === "cursor") && (
+                    adapterType === "cursor" ||
+                    adapterType === "kiro_local") && (
                     <div className="space-y-3">
                       <div>
                         <div className="flex items-center gap-1.5 mb-1">
