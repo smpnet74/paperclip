@@ -33,14 +33,7 @@ const KIRO_MODELS = [
 async function getCompany(page: Page): Promise<{ id: string; name: string; issuePrefix: string }> {
   const res = await page.request.get(`${BASE_URL}/api/companies`);
   const companies = await res.json();
-  if (companies.length > 0) return companies[0];
-
-  // No company yet (fresh CI database, onboarding test may not have run).
-  // Create a minimal company so kiro adapter tests are self-contained.
-  const createRes = await page.request.post(`${BASE_URL}/api/companies`, {
-    data: { name: `Kiro-E2E-${Date.now()}` },
-  });
-  return createRes.json();
+  return companies[0];
 }
 
 async function getAgents(page: Page, companyId: string) {
