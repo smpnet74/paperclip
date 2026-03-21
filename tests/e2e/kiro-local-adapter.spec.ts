@@ -716,6 +716,7 @@ test.describe("Adapter switch field preservation (API-level)", () => {
       expect(updated.adapterConfig.cwd).toBe(SHARED_FIELDS.cwd);
       expect(updated.adapterConfig.instructionsFilePath).toBe(SHARED_FIELDS.instructionsFilePath);
       expect(updated.adapterConfig.command).toBe(SHARED_FIELDS.command);
+      expect(updated.adapterConfig.extraArgs).toBe(SHARED_FIELDS.extraArgs);
       expect(updated.adapterConfig.timeoutSec).toBe(SHARED_FIELDS.timeoutSec);
       expect(updated.adapterConfig.graceSec).toBe(SHARED_FIELDS.graceSec);
       // env is normalized by the server: string "bar" → {type:"plain", value:"bar"}
