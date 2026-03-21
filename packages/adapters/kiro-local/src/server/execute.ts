@@ -85,7 +85,7 @@ export async function ensureKiroSkillsInjected(
   // Clean up maintainer-only skills (symlinks pointing to .agents/skills)
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
     skillsHome,
-    skillsEntries.map((entry) => entry.name),
+    skillsEntries.map((entry) => entry.runtimeName),
   );
   for (const skillName of removedSkills) {
     await onLog(
@@ -96,7 +96,7 @@ export async function ensureKiroSkillsInjected(
 
   // Inject each Paperclip skill as a SKILL.md file with YAML frontmatter
   for (const entry of skillsEntries) {
-    const skillDir = path.join(skillsHome, entry.name);
+    const skillDir = path.join(skillsHome, entry.runtimeName);
     const skillFile = path.join(skillDir, "SKILL.md");
     const managedMarker = path.join(skillDir, PAPERCLIP_MANAGED_MARKER);
 
@@ -107,17 +107,17 @@ export async function ensureKiroSkillsInjected(
       if (skillExists && !isManaged) {
         await onLog(
           "stderr",
-          `[paperclip] Skipping Kiro skill "${entry.name}" — ${skillDir} already exists and is not Paperclip-managed\n`,
+          `[paperclip] Skipping Kiro skill "${entry.key}" — ${skillDir} already exists and is not Paperclip-managed\n`,
         );
         continue;
       }
 
       // Read the skill's markdown content
-      const skillContent = await readPaperclipSkillMarkdown(moduleDir, entry.name);
+      const skillContent = await readPaperclipSkillMarkdown(moduleDir, entry.key);
       if (!skillContent) {
         await onLog(
           "stderr",
-          `[paperclip] Failed to read Kiro skill "${entry.name}": SKILL.md not found\n`,
+          `[paperclip] Failed to read Kiro skill "${entry.key}": SKILL.md not found\n`,
         );
         continue;
       }
@@ -139,14 +139,14 @@ export async function ensureKiroSkillsInjected(
 
       // Extract a description from the skill content for YAML frontmatter
       const lines = skillContent.split("\n").filter((line) => line.trim());
-      let description = entry.name;
+      let description = entry.key;
       for (const line of lines) {
         if (line.startsWith("# ")) {
           description = line.slice(2).trim();
           break;
         }
       }
-      if (description === entry.name && lines.length > 0) {
+      if (description === entry.key && lines.length > 0) {
         const firstLine = lines[0].trim();
         if (firstLine.length > 0 && firstLine.length < 100) {
           description = firstLine;
@@ -163,7 +163,7 @@ export async function ensureKiroSkillsInjected(
 
       // Build SKILL.md with YAML frontmatter
       const kiroSkillMd = `---
-name: ${escapeYaml(entry.name)}
+name: ${escapeYaml(entry.runtimeName)}
 description: ${escapeYaml(description)}
 ---
 
@@ -171,15 +171,15 @@ ${skillContent}
 `;
 
       await fs.writeFile(skillFile, kiroSkillMd, "utf8");
-      await fs.writeFile(managedMarker, `${entry.name}\n`, "utf8");
+      await fs.writeFile(managedMarker, `${entry.runtimeName}\n`, "utf8");
       await onLog(
         "stderr",
-        `[paperclip] Injected Kiro skill: ${entry.name}\n`,
+        `[paperclip] Injected Kiro skill: ${entry.key}\n`,
       );
     } catch (err) {
       await onLog(
         "stderr",
-        `[paperclip] Failed to inject Kiro skill "${entry.name}": ${err instanceof Error ? err.message : String(err)}\n`,
+        `[paperclip] Failed to inject Kiro skill "${entry.key}": ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
   }
@@ -203,7 +203,7 @@ export async function cleanupKiroSkills(
 
   const skillsHome = options?.skillsHome ?? kiroSkillsHome();
   for (const entry of skillsEntries) {
-    const skillDir = path.join(skillsHome, entry.name);
+    const skillDir = path.join(skillsHome, entry.runtimeName);
     try {
       // Only delete skills we own (have a managed marker)
       const managedMarker = path.join(skillDir, PAPERCLIP_MANAGED_MARKER);
@@ -212,7 +212,7 @@ export async function cleanupKiroSkills(
         await fs.rm(skillDir, { recursive: true, force: true });
         await onLog(
           "stderr",
-          `[paperclip] Cleaned up Kiro skill: ${entry.name}\n`,
+          `[paperclip] Cleaned up Kiro skill: ${entry.key}\n`,
         );
       }
     } catch {
