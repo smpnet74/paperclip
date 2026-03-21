@@ -650,6 +650,8 @@ test.describe("Adapter switch field preservation (API-level)", () => {
       expect(updated.adapterConfig.extraArgs).toBe(SHARED_FIELDS.extraArgs);
       expect(updated.adapterConfig.timeoutSec).toBe(SHARED_FIELDS.timeoutSec);
       expect(updated.adapterConfig.graceSec).toBe(SHARED_FIELDS.graceSec);
+      // env is normalized by the server: string "bar" → {type:"plain", value:"bar"}
+      expect(updated.adapterConfig.env).toMatchObject({ FOO: { type: "plain", value: "bar" } });
     } finally {
       await page.request.delete(`${BASE_URL}/api/companies/${companyId}/agents/${agent.id}`);
     }
@@ -716,6 +718,8 @@ test.describe("Adapter switch field preservation (API-level)", () => {
       expect(updated.adapterConfig.command).toBe(SHARED_FIELDS.command);
       expect(updated.adapterConfig.timeoutSec).toBe(SHARED_FIELDS.timeoutSec);
       expect(updated.adapterConfig.graceSec).toBe(SHARED_FIELDS.graceSec);
+      // env is normalized by the server: string "bar" → {type:"plain", value:"bar"}
+      expect(updated.adapterConfig.env).toMatchObject({ FOO: { type: "plain", value: "bar" } });
     } finally {
       await page.request.delete(`${BASE_URL}/api/companies/${companyId}/agents/${agent.id}`);
     }
@@ -749,6 +753,8 @@ test.describe("Adapter switch field preservation (API-level)", () => {
       expect(updated.adapterConfig.cwd).toBe(newCwd);
       // Non-overridden shared fields still preserved from original
       expect(updated.adapterConfig.instructionsFilePath).toBe(SHARED_FIELDS.instructionsFilePath);
+      // env not overridden in patch — must survive from original (normalized form)
+      expect(updated.adapterConfig.env).toMatchObject({ FOO: { type: "plain", value: "bar" } });
     } finally {
       await page.request.delete(`${BASE_URL}/api/companies/${companyId}/agents/${agent.id}`);
     }
