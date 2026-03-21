@@ -26,6 +26,9 @@ import { parseKiroOutput, isKiroUnknownSessionError } from "./parse.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
+/** Options for Kiro skill injection and cleanup. */
+export type KiroSkillsOptions = { skillsHome?: string; moduleDir?: string };
+
 /** Marker file written to Paperclip-managed skill directories for safe cleanup. */
 const PAPERCLIP_MANAGED_MARKER = ".paperclip-managed";
 
@@ -60,13 +63,15 @@ function kiroSkillsHome(): string {
  *
  * @param onLog - Logging callback for status messages
  */
-async function ensureKiroSkillsInjected(
+export async function ensureKiroSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
+  options?: KiroSkillsOptions,
 ): Promise<void> {
-  const skillsEntries = await listPaperclipSkillEntries(__moduleDir);
+  const moduleDir = options?.moduleDir ?? __moduleDir;
+  const skillsEntries = await listPaperclipSkillEntries(moduleDir);
   if (skillsEntries.length === 0) return;
 
-  const skillsHome = kiroSkillsHome();
+  const skillsHome = options?.skillsHome ?? kiroSkillsHome();
   try {
     await fs.mkdir(skillsHome, { recursive: true });
   } catch (err) {
@@ -108,7 +113,7 @@ async function ensureKiroSkillsInjected(
       }
 
       // Read the skill's markdown content
-      const skillContent = await readPaperclipSkillMarkdown(__moduleDir, entry.name);
+      const skillContent = await readPaperclipSkillMarkdown(moduleDir, entry.name);
       if (!skillContent) {
         await onLog(
           "stderr",
@@ -188,13 +193,15 @@ ${skillContent}
  *
  * @param onLog - Logging callback for status messages
  */
-async function cleanupKiroSkills(
+export async function cleanupKiroSkills(
   onLog: AdapterExecutionContext["onLog"],
+  options?: KiroSkillsOptions,
 ): Promise<void> {
-  const skillsEntries = await listPaperclipSkillEntries(__moduleDir);
+  const moduleDir = options?.moduleDir ?? __moduleDir;
+  const skillsEntries = await listPaperclipSkillEntries(moduleDir);
   if (skillsEntries.length === 0) return;
 
-  const skillsHome = kiroSkillsHome();
+  const skillsHome = options?.skillsHome ?? kiroSkillsHome();
   for (const entry of skillsEntries) {
     const skillDir = path.join(skillsHome, entry.name);
     try {

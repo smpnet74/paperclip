@@ -1,11 +1,26 @@
 import type { ServerAdapterModule, AdapterModel, AdapterEnvironmentTestResult, AdapterSessionCodec } from "@paperclipai/adapter-utils";
-import { execute as executeImpl } from "./execute.js";
+import { execute as executeImpl, ensureKiroSkillsInjected, cleanupKiroSkills, type KiroSkillsOptions } from "./execute.js";
 import { testEnvironment as testEnvironmentImpl } from "./test.js";
 import { type, models, agentConfigurationDoc, DEFAULT_KIRO_LOCAL_MODEL } from "../index.js";
 
 // Re-export for registry consumption
 export { executeImpl as execute };
 export { testEnvironmentImpl as testEnvironment };
+
+// Re-export skill injection for testing
+export { ensureKiroSkillsInjected, cleanupKiroSkills, type KiroSkillsOptions };
+
+// Re-export parse utilities
+export {
+  stripAnsi,
+  parseCredits,
+  parseTimeSeconds,
+  parseKiroOutput,
+  isKiroUnknownSessionError,
+} from "./parse.js";
+
+// Re-export models constant (listKiroModels is defined locally below)
+export { KIRO_MODELS } from "./models.js";
 
 /**
  * Kiro session codec.

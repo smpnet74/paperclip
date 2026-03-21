@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { execute } from "./execute.js";
 import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
 import type { RunProcessResult } from "@paperclipai/adapter-utils/server-utils";
 
@@ -16,11 +15,14 @@ vi.mock("@paperclipai/adapter-utils/server-utils", async () => {
     buildPaperclipEnv: vi.fn(() => ({ PAPERCLIP_AGENT_ID: "test-agent" })),
     redactEnvForLogs: vi.fn((env) => env),
     runChildProcess: vi.fn(),
+    listPaperclipSkillEntries: vi.fn(() => Promise.resolve([])),
+    readPaperclipSkillMarkdown: vi.fn(() => Promise.resolve(null)),
+    removeMaintainerOnlySkillSymlinks: vi.fn(() => Promise.resolve([])),
   };
 });
 
-// Mock the parse module
-vi.mock("./parse.js", () => ({
+// Mock the parse module at its source path so vitest intercepts execute.ts's internal import
+vi.mock("../../../packages/adapters/kiro-local/src/server/parse.js", () => ({
   parseKiroOutput: vi.fn((stdout: string, stderr: string) => ({
     summary: stdout.trim(),
     costUsd: stderr.includes("Credits") ? 0.04 : null,
@@ -31,8 +33,8 @@ vi.mock("./parse.js", () => ({
   ),
 }));
 
+import { execute, isKiroUnknownSessionError } from "@paperclipai/adapter-kiro-local/server";
 import { runChildProcess } from "@paperclipai/adapter-utils/server-utils";
-import { parseKiroOutput, isKiroUnknownSessionError } from "./parse.js";
 
 function mockResult(overrides: Partial<RunProcessResult> = {}): RunProcessResult {
   return {

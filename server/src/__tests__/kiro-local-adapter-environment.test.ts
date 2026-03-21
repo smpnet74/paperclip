@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { testEnvironment } from "./test.js";
+import { testEnvironment } from "@paperclipai/adapter-kiro-local/server";
 import type { RunProcessResult } from "@paperclipai/adapter-utils/server-utils";
 import type { AdapterEnvironmentTestContext } from "@paperclipai/adapter-utils";
 
