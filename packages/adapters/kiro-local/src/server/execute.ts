@@ -60,13 +60,15 @@ function kiroSkillsHome(): string {
  *
  * @param onLog - Logging callback for status messages
  */
-async function ensureKiroSkillsInjected(
+export async function ensureKiroSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
+  options?: { skillsHome?: string; moduleDir?: string },
 ): Promise<void> {
-  const skillsEntries = await listPaperclipSkillEntries(__moduleDir);
+  const moduleDir = options?.moduleDir ?? __moduleDir;
+  const skillsEntries = await listPaperclipSkillEntries(moduleDir);
   if (skillsEntries.length === 0) return;
 
-  const skillsHome = kiroSkillsHome();
+  const skillsHome = options?.skillsHome ?? kiroSkillsHome();
   try {
     await fs.mkdir(skillsHome, { recursive: true });
   } catch (err) {
@@ -108,7 +110,7 @@ async function ensureKiroSkillsInjected(
       }
 
       // Read the skill's markdown content
-      const skillContent = await readPaperclipSkillMarkdown(__moduleDir, entry.name);
+      const skillContent = await readPaperclipSkillMarkdown(moduleDir, entry.name);
       if (!skillContent) {
         await onLog(
           "stderr",
@@ -188,13 +190,15 @@ ${skillContent}
  *
  * @param onLog - Logging callback for status messages
  */
-async function cleanupKiroSkills(
+export async function cleanupKiroSkills(
   onLog: AdapterExecutionContext["onLog"],
+  options?: { skillsHome?: string; moduleDir?: string },
 ): Promise<void> {
-  const skillsEntries = await listPaperclipSkillEntries(__moduleDir);
+  const moduleDir = options?.moduleDir ?? __moduleDir;
+  const skillsEntries = await listPaperclipSkillEntries(moduleDir);
   if (skillsEntries.length === 0) return;
 
-  const skillsHome = kiroSkillsHome();
+  const skillsHome = options?.skillsHome ?? kiroSkillsHome();
   for (const entry of skillsEntries) {
     const skillDir = path.join(skillsHome, entry.name);
     try {
