@@ -93,15 +93,15 @@ test.describe("kiro_local adapter — Agent Creation (New Agent page)", () => {
 
     await selectKiroAdapter(page);
 
-    // Working directory should be visible
-    await expect(page.locator("text=Working directory").first()).toBeVisible({ timeout: 10_000 });
-
     // Agent instructions file should be visible
-    await expect(page.locator("text=Agent instructions file").first()).toBeVisible();
+    await expect(page.locator("text=Agent instructions file").first()).toBeVisible({ timeout: 10_000 });
 
     // Command field with "kiro-cli" placeholder
     const commandInput = page.locator('input[placeholder="kiro-cli"]');
     await expect(commandInput).toBeVisible({ timeout: 5_000 });
+
+    // Working directory (legacy) is intentionally hidden in create mode
+    await expect(page.locator("text=Working directory").first()).not.toBeVisible();
   });
 
   test("command field has 'kiro-cli' placeholder (not 'claude' or other)", async ({ page }) => {
@@ -216,13 +216,7 @@ test.describe("kiro_local adapter — Agent Creation (New Agent page)", () => {
     await expect(nameInput).toBeVisible({ timeout: 10_000 });
     await nameInput.fill(agentName);
 
-    // Fill working directory
-    const cwdInput = page.locator('input[placeholder="/path/to/project"]').first();
-    await expect(cwdInput).toBeVisible({ timeout: 10_000 });
-    await cwdInput.fill("/tmp/kiro-test");
-    await cwdInput.blur();
-
-    // Fill instructions file
+    // Fill instructions file (working directory is hidden in create mode)
     const instrInput = page.locator('input[placeholder="/absolute/path/to/AGENTS.md"]').first();
     await expect(instrInput).toBeVisible({ timeout: 10_000 });
     await instrInput.fill("/tmp/kiro-test/AGENTS.md");
@@ -255,8 +249,7 @@ test.describe("kiro_local adapter — Agent Creation (New Agent page)", () => {
       expect(cfg[field], `adapterConfig should not contain field "${field}"`).toBeUndefined();
     }
 
-    // Verify cwd and instructionsFilePath were saved
-    expect(cfg.cwd).toBe("/tmp/kiro-test");
+    // Verify instructionsFilePath was saved
     expect(cfg.instructionsFilePath).toBe("/tmp/kiro-test/AGENTS.md");
 
     // Cleanup
