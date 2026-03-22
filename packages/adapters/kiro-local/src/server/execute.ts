@@ -34,13 +34,14 @@ const PAPERCLIP_MANAGED_MARKER = ".paperclip-managed";
 
 /**
  * Kiro skills home directory.
- * When a company prefix is provided, skills are isolated under
- * ~/.kiro/skills/<companyPrefix>/ to prevent cross-company collisions.
- * Without a prefix, falls back to the global ~/.kiro/skills/.
+ *
+ * Always returns ~/.kiro/skills/ — Kiro only scans top-level subdirectories
+ * for SKILL.md files and does not recurse into nested directories.
+ * Cross-company isolation is handled by the `<companyPrefix>--<skillName>`
+ * directory naming convention, not by subdirectory nesting.
  */
-function kiroSkillsHome(companyPrefix?: string): string {
-  const base = path.join(os.homedir(), ".kiro", "skills");
-  return companyPrefix ? path.join(base, companyPrefix) : base;
+function kiroSkillsHome(): string {
+  return path.join(os.homedir(), ".kiro", "skills");
 }
 
 /** Log a warning when skills are using the unsafe global default. */
@@ -79,7 +80,7 @@ export async function ensureKiroSkillsInjected(
   const moduleDir = options?.moduleDir ?? __moduleDir;
   const skillsEntries = await listPaperclipSkillEntries(moduleDir);
   const companyPrefix = options?.companyPrefix ?? "";
-  const skillsHome = options?.skillsHome ?? kiroSkillsHome(companyPrefix || undefined);
+  const skillsHome = options?.skillsHome ?? kiroSkillsHome();
   const skillDirName = (runtimeName: string): string =>
     companyPrefix ? `${companyPrefix}--${runtimeName}` : runtimeName;
   try {
