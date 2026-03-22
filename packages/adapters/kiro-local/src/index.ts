@@ -63,7 +63,7 @@ Don't use when:
 | \`extraArgs\` | Additional CLI flags | \`[]\` |
 | \`env\` | Environment variable overrides | \`{}\` |
 | \`companyPrefix\` | Namespace prefix for skill directories (e.g. \`"dem"\` → \`dem--paperclip\`). Prevents cross-company skill collisions in \`~/.kiro/skills/\`. | Empty (no prefix) |
-| \`skillsHome\` | Override path for Kiro skills directory. Useful for full isolation between companies. | \`~/.kiro/skills\` |
+| \`skillsHome\` | Override path for Kiro skills directory. | \`~/.kiro/skills\` |
 | \`workspaceStrategy\` | Execution workspace strategy (object) | Not set |
 
 ### Workspace Strategy

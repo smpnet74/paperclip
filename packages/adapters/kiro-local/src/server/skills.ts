@@ -17,12 +17,12 @@ const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Kiro skills home directory.
- * When a company prefix is provided, skills are isolated under
- * ~/.kiro/skills/<companyPrefix>/ to prevent cross-company collisions.
+ *
+ * Always returns ~/.kiro/skills/ — Kiro only scans top-level subdirectories
+ * for SKILL.md files. Cross-company isolation uses `<prefix>--<name>` naming.
  */
-function resolveKiroSkillsHome(companyPrefix?: string): string {
-  const base = path.join(os.homedir(), ".kiro", "skills");
-  return companyPrefix ? path.join(base, companyPrefix) : base;
+function resolveKiroSkillsHome(): string {
+  return path.join(os.homedir(), ".kiro", "skills");
 }
 
 /**
@@ -40,7 +40,7 @@ async function buildKiroSkillSnapshot(config: Record<string, unknown>): Promise<
   const desiredSet = new Set(desiredSkills);
   const companyPrefix = asString(config.companyPrefix, "").trim().toLowerCase();
   const configSkillsHome = asString(config.skillsHome, "").trim();
-  const skillsHome = configSkillsHome || resolveKiroSkillsHome(companyPrefix || undefined);
+  const skillsHome = configSkillsHome || resolveKiroSkillsHome();
   const skillDirName = (runtimeName: string): string =>
     companyPrefix ? `${companyPrefix}--${runtimeName}` : runtimeName;
   const installed = await readInstalledSkillTargets(skillsHome);

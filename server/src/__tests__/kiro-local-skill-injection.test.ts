@@ -289,6 +289,55 @@ describe("kiro local adapter skill injection", () => {
     expect(logs.some((line) => line.includes('Pruned stale Kiro skill "x--old-skill"'))).toBe(true);
   });
 
+  it("injected skills are discoverable at top-level skillsHome paths", async () => {
+    const root = await makeTempDir("paperclip-kiro-discovery-src-");
+    const skillsHome = await makeTempDir("paperclip-kiro-discovery-home-");
+    cleanupDirs.add(root);
+    cleanupDirs.add(skillsHome);
+
+    const moduleDir = path.join(root, "a", "b");
+    await fs.mkdir(moduleDir, { recursive: true });
+
+    await createSkillSource(root, "paperclip", "# Paperclip Skill\n\nInteract with Paperclip.");
+    await createSkillSource(root, "paperclip-create-agent", "# Create Agent\n\nCreate new agents.");
+
+    // Inject with a company prefix
+    await ensureKiroSkillsInjected(async () => {}, {
+      skillsHome,
+      moduleDir,
+      companyPrefix: "dem",
+    });
+
+    // Kiro discovers skills by scanning top-level subdirectories of skillsHome
+    // for SKILL.md files. Verify ALL injected skills are direct children of
+    // skillsHome (no nested subdirectories) and contain valid SKILL.md files.
+    const topLevelEntries = await fs.readdir(skillsHome, { withFileTypes: true });
+    const skillDirs = topLevelEntries.filter((e) => e.isDirectory()).map((e) => e.name);
+
+    // Skills should be at skillsHome/<prefix>--<name>/ (flat, not nested)
+    expect(skillDirs).toContain("dem--paperclip");
+    expect(skillDirs).toContain("dem--paperclip-create-agent");
+
+    // Each skill directory must have a SKILL.md directly inside (one level deep)
+    for (const dirName of skillDirs) {
+      const skillMdPath = path.join(skillsHome, dirName, "SKILL.md");
+      const stat = await fs.stat(skillMdPath);
+      expect(stat.isFile()).toBe(true);
+
+      // Verify SKILL.md has valid YAML frontmatter (Kiro requires this)
+      const content = await fs.readFile(skillMdPath, "utf8");
+      expect(content).toMatch(/^---\nname: /);
+      expect(content).toMatch(/\ndescription: /);
+      expect(content).toMatch(/\n---\n/);
+    }
+
+    // There must be NO nested company-prefix subdirectory
+    // (i.e., skillsHome/dem/ must NOT exist as a directory containing skills)
+    const companySubdir = path.join(skillsHome, "dem");
+    const companySubdirExists = await fs.stat(companySubdir).then(() => true).catch(() => false);
+    expect(companySubdirExists).toBe(false);
+  });
+
   it("handles missing skills directory gracefully", async () => {
     const root = await makeTempDir("paperclip-kiro-empty-src-");
     const skillsHome = await makeTempDir("paperclip-kiro-empty-home-");
