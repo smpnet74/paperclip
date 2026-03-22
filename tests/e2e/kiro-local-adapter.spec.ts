@@ -547,7 +547,7 @@ test.describe("kiro_local adapter — AgentConfigForm adapter type switching", (
 });
 
 test.describe("kiro_local adapter — API validation", () => {
-  test("adapter models endpoint returns exactly 8 kiro models in correct order", async ({
+  test("adapter models endpoint returns all 11 kiro models in correct order", async ({
     page,
   }) => {
     const company = await getCompany(page);
@@ -557,10 +557,13 @@ test.describe("kiro_local adapter — API validation", () => {
     expect(res.ok()).toBe(true);
     const models = await res.json();
 
-    expect(models).toHaveLength(8);
+    expect(models).toHaveLength(11);
 
     const expectedIds = [
       "auto",
+      "claude-opus-4.6",
+      "claude-opus-4.5",
+      "claude-sonnet-4.6",
       "claude-sonnet-4.5",
       "claude-sonnet-4",
       "claude-haiku-4.5",
@@ -582,7 +585,7 @@ test.describe("kiro_local adapter — API validation", () => {
     expect(modelsRes.ok()).toBe(true);
     const models = await modelsRes.json();
     expect(models[0].id).toBe("auto");
-    expect(models).toHaveLength(8);
+    expect(models).toHaveLength(11);
   });
 });
 
