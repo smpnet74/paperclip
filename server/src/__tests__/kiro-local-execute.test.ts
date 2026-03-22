@@ -216,6 +216,50 @@ describe("execute", () => {
       expect(result.exitCode).toBe(0);
     });
 
+    it("clears stale session: retry result has new session ID, not the stale one", async () => {
+      const staleSessionId = "stale-session-999";
+
+      // Use "unknown session" in stdout so the real isKiroUnknownSessionError mock (which checks
+      // the string) returns true naturally — avoids vi.mocked().mockReturnValue which is
+      // unreliable in worktree environments where module resolution diverges.
+      vi.mocked(runChildProcess)
+        .mockResolvedValueOnce(mockResult({
+          exitCode: 1,
+          stdout: "Error: unknown session id",
+          stderr: "",
+        }))
+        .mockResolvedValueOnce(mockResult({
+          stdout: "Fresh session response",
+        }));
+
+      const contextWithStaleSession: AdapterExecutionContext = {
+        ...mockContext,
+        runId: "new-run-abc",
+        runtime: {
+          sessionId: staleSessionId,
+          sessionParams: null,
+          sessionDisplayId: null,
+          taskKey: null,
+        },
+      };
+
+      const result = await execute(contextWithStaleSession);
+
+      // execute should have retried (called twice)
+      expect(runChildProcess).toHaveBeenCalledTimes(2);
+      // Old stale session ID must NOT appear in result
+      expect(result.sessionId).not.toBe(staleSessionId);
+      // New session ID is the run ID (fresh session)
+      expect(result.sessionId).toBe("new-run-abc");
+      // sessionParams must reflect the fresh session
+      expect(result.sessionParams).toMatchObject({
+        sessionId: "new-run-abc",
+        cwd: "/tmp/test",
+      });
+      // sessionDisplayId should also be fresh
+      expect(result.sessionDisplayId).not.toBe(staleSessionId);
+    });
+
     it("does not retry on non-session errors", async () => {
       vi.mocked(runChildProcess).mockResolvedValue(mockResult({
         exitCode: 1,

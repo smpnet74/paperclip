@@ -168,6 +168,50 @@ describe("kiro local adapter skill injection", () => {
     expect(logs.some((line) => line.includes("Injected Kiro skill: paperclip"))).toBe(true);
   });
 
+  it("concurrent runs do not clobber each other's skills", async () => {
+    const root = await makeTempDir("paperclip-kiro-concurrent-src-");
+    const skillsHome = await makeTempDir("paperclip-kiro-concurrent-home-");
+    cleanupDirs.add(root);
+    cleanupDirs.add(skillsHome);
+
+    const moduleDir = path.join(root, "a", "b");
+    await fs.mkdir(moduleDir, { recursive: true });
+
+    await createSkillSource(root, "paperclip", "# Paperclip\n\nSkill content.");
+    await createSkillSource(root, "paperclip-create-agent", "# Create Agent\n\nCreate agents.");
+
+    // Simulate two agents running concurrently by calling ensureKiroSkillsInjected in parallel
+    const logsA: string[] = [];
+    const logsB: string[] = [];
+    await Promise.all([
+      ensureKiroSkillsInjected(
+        async (_stream, chunk) => { logsA.push(chunk); },
+        { skillsHome, moduleDir },
+      ),
+      ensureKiroSkillsInjected(
+        async (_stream, chunk) => { logsB.push(chunk); },
+        { skillsHome, moduleDir },
+      ),
+    ]);
+
+    // Both agents see skills injected or up-to-date — neither throws
+    const skillFileA = path.join(skillsHome, "paperclip", "SKILL.md");
+    const skillFileB = path.join(skillsHome, "paperclip-create-agent", "SKILL.md");
+
+    const contentA = await fs.readFile(skillFileA, "utf8");
+    const contentB = await fs.readFile(skillFileB, "utf8");
+
+    // Skills are intact — not empty, not corrupted
+    expect(contentA).toContain("Skill content.");
+    expect(contentB).toContain("Create agents.");
+
+    // Managed markers are present for both skills
+    const markerA = path.join(skillsHome, "paperclip", ".paperclip-managed");
+    const markerB = path.join(skillsHome, "paperclip-create-agent", ".paperclip-managed");
+    expect(await fs.stat(markerA).then(() => true).catch(() => false)).toBe(true);
+    expect(await fs.stat(markerB).then(() => true).catch(() => false)).toBe(true);
+  });
+
   it("handles missing skills directory gracefully", async () => {
     const root = await makeTempDir("paperclip-kiro-empty-src-");
     const skillsHome = await makeTempDir("paperclip-kiro-empty-home-");
