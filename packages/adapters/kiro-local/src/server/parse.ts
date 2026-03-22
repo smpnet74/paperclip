@@ -7,23 +7,19 @@
  * Credit info is reported in stderr: "Credits: X.XX • Time: Xs"
  */
 
-// CSI sequences: \x1b[0m, \x1b[31m, \x1b[2K, \x1b[1G, etc.
-const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*[mGKHfABCDsuJK]/g;
-// OSC sequences: \x1b]0;Title\x07
-const ANSI_OS_ESCAPE_RE = /\x1b\][0-9];[^\x07\x1b]*[\x07\x1b\\]/g;
-// Catch-all for remaining CSI sequences (including private ?-prefixed like \x1b[?25l)
-const CSI_RESET_RE = /\x1b\[\??[0-9;]*[a-zA-Z]/g;
+/**
+ * Comprehensive ANSI escape code regex covering:
+ * - CSI sequences: \x1b[0m, \x1b[31m, \x1b[2K, \x1b[?25l, etc.
+ * - OSC sequences: \x1b]0;Title\x07 (terminated by BEL or ST)
+ */
+const ANSI_RE = /\x1b(?:\[\??[0-9;]*[a-zA-Z]|\][0-9];[^\x07\x1b]*[\x07\x1b\\])/g;
 
 /**
  * Strip all ANSI escape codes from text.
  * This is mandatory for kiro-cli output — --wrap never does NOT remove color codes.
  */
 export function stripAnsi(text: string): string {
-  let cleaned = text;
-  cleaned = cleaned.replace(ANSI_OS_ESCAPE_RE, "");
-  cleaned = cleaned.replace(ANSI_ESCAPE_RE, "");
-  cleaned = cleaned.replace(CSI_RESET_RE, "");
-  return cleaned;
+  return text.replace(ANSI_RE, "");
 }
 
 /**
