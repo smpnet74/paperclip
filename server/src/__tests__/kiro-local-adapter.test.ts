@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   stripAnsi,
   parseCredits,
@@ -7,6 +7,8 @@ import {
   isKiroUnknownSessionError,
   KIRO_MODELS,
   listKiroModels,
+  resetKiroModelsCacheForTests,
+  setKiroModelsRunnerForTests,
 } from "@paperclipai/adapter-kiro-local/server";
 
 describe("stripAnsi", () => {
@@ -246,13 +248,28 @@ describe("isKiroUnknownSessionError", () => {
 });
 
 describe("KIRO_MODELS", () => {
-  it("contains all 8 expected models", () => {
-    expect(KIRO_MODELS).toHaveLength(8);
+  it("contains all 11 expected models", () => {
+    expect(KIRO_MODELS).toHaveLength(11);
   });
 
   it("contains auto model", () => {
     const auto = KIRO_MODELS.find((m) => m.id === "auto");
     expect(auto).toEqual({ id: "auto", label: "auto" });
+  });
+
+  it("contains claude-opus-4.6 model", () => {
+    const model = KIRO_MODELS.find((m) => m.id === "claude-opus-4.6");
+    expect(model).toEqual({ id: "claude-opus-4.6", label: "Claude Opus 4.6" });
+  });
+
+  it("contains claude-opus-4.5 model", () => {
+    const model = KIRO_MODELS.find((m) => m.id === "claude-opus-4.5");
+    expect(model).toEqual({ id: "claude-opus-4.5", label: "Claude Opus 4.5" });
+  });
+
+  it("contains claude-sonnet-4.6 model", () => {
+    const model = KIRO_MODELS.find((m) => m.id === "claude-sonnet-4.6");
+    expect(model).toEqual({ id: "claude-sonnet-4.6", label: "Claude Sonnet 4.6" });
   });
 
   it("contains claude-sonnet-4.5 model", () => {
@@ -307,25 +324,39 @@ describe("KIRO_MODELS", () => {
 });
 
 describe("listKiroModels", () => {
-  it("returns all models", async () => {
+  beforeEach(() => {
+    resetKiroModelsCacheForTests();
+    // Use a runner that simulates kiro-cli not installed (fallback path)
+    setKiroModelsRunnerForTests(() => ({
+      status: null,
+      stdout: "",
+      stderr: "",
+      hasError: true,
+    }));
+  });
+
+  it("returns fallback models when CLI is unavailable", async () => {
     const models = await listKiroModels();
     expect(models).toEqual(KIRO_MODELS);
   });
 
-  it("returns 8 models", async () => {
+  it("returns 11 models in fallback mode", async () => {
     const models = await listKiroModels();
-    expect(models).toHaveLength(8);
+    expect(models).toHaveLength(11);
   });
 
   it("returns models in expected order", async () => {
     const models = await listKiroModels();
     expect(models[0].id).toBe("auto");
-    expect(models[1].id).toBe("claude-sonnet-4.5");
-    expect(models[2].id).toBe("claude-sonnet-4");
-    expect(models[3].id).toBe("claude-haiku-4.5");
-    expect(models[4].id).toBe("deepseek-3.2");
-    expect(models[5].id).toBe("minimax-m2.1");
-    expect(models[6].id).toBe("minimax-m2.5");
-    expect(models[7].id).toBe("qwen3-coder-next");
+    expect(models[1].id).toBe("claude-opus-4.6");
+    expect(models[2].id).toBe("claude-opus-4.5");
+    expect(models[3].id).toBe("claude-sonnet-4.6");
+    expect(models[4].id).toBe("claude-sonnet-4.5");
+    expect(models[5].id).toBe("claude-sonnet-4");
+    expect(models[6].id).toBe("claude-haiku-4.5");
+    expect(models[7].id).toBe("deepseek-3.2");
+    expect(models[8].id).toBe("minimax-m2.1");
+    expect(models[9].id).toBe("minimax-m2.5");
+    expect(models[10].id).toBe("qwen3-coder-next");
   });
 });

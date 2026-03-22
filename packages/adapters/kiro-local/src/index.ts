@@ -15,6 +15,9 @@ export const label = "Kiro (local)";
 
 export const models = [
   { id: "auto", label: "auto" },
+  { id: "claude-opus-4.6", label: "Claude Opus 4.6" },
+  { id: "claude-opus-4.5", label: "Claude Opus 4.5" },
+  { id: "claude-sonnet-4.6", label: "Claude Sonnet 4.6" },
   { id: "claude-sonnet-4.5", label: "Claude Sonnet 4.5" },
   { id: "claude-sonnet-4", label: "Claude Sonnet 4" },
   { id: "claude-haiku-4.5", label: "Claude Haiku 4.5" },
@@ -60,17 +63,20 @@ Don't use when:
 | \`extraArgs\` | Additional CLI flags | \`[]\` |
 | \`env\` | Environment variable overrides | \`{}\` |
 
-## Models (kiro-cli v1.27.3)
+## Models (kiro-cli v1.28.0+)
 
 \`\`\`
 auto               - Auto-select based on context
+claude-opus-4.6    - Claude Opus 4.6 (state-of-the-art)
+claude-opus-4.5    - Claude Opus 4.5 (maximum capability)
+claude-sonnet-4.6  - Claude Sonnet 4.6 (near-Opus intelligence)
 claude-sonnet-4.5  - Claude Sonnet 4.5 (200K / 1M context)
 claude-sonnet-4    - Claude Sonnet 4 (200K context)
 claude-haiku-4.5   - Claude Haiku 4.5 (200K context)
 deepseek-3.2       - DeepSeek 3.2 (128K context)
 minimax-m2.1       - MiniMax M2.1 (128K context)
 minimax-m2.5       - MiniMax M2.5 (128K context)
-qwen3-coder-next   - Qwen 3 Coder Next (128K context)
+qwen3-coder-next   - Qwen 3 Coder Next (256K context)
 \`\`\`
 
 ## Execution
