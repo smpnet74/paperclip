@@ -1,7 +1,7 @@
-import type { ServerAdapterModule, AdapterModel, AdapterEnvironmentTestResult, AdapterSessionCodec } from "@paperclipai/adapter-utils";
+import type { ServerAdapterModule, AdapterSessionCodec } from "@paperclipai/adapter-utils";
 import { execute as executeImpl, ensureKiroSkillsInjected, type KiroSkillsOptions } from "./execute.js";
 import { testEnvironment as testEnvironmentImpl } from "./test.js";
-import { type, models, agentConfigurationDoc, DEFAULT_KIRO_LOCAL_MODEL } from "../index.js";
+import { type, models, agentConfigurationDoc } from "../index.js";
 
 // Re-export for registry consumption
 export { executeImpl as execute };
@@ -22,8 +22,11 @@ export {
 // Re-export skill sync methods
 export { listKiroSkills, syncKiroSkills } from "./skills.js";
 
-// Re-export models constant (listKiroModels is defined locally below)
-export { KIRO_MODELS } from "./models.js";
+// Import dynamic model discovery for use in adapter module
+import { listKiroModels } from "./models.js";
+
+// Re-export models constant and dynamic discovery
+export { KIRO_MODELS, listKiroModels, resetKiroModelsCacheForTests, setKiroModelsRunnerForTests, parseKiroModelsOutput } from "./models.js";
 
 /**
  * Kiro session codec.
@@ -56,13 +59,6 @@ export const sessionCodec: AdapterSessionCodec = {
     return typeof params.sessionId === "string" ? params.sessionId : null;
   },
 };
-
-/**
- * List available Kiro models.
- */
-export async function listKiroModels(): Promise<AdapterModel[]> {
-  return [...models];
-}
 
 /**
  * Server adapter module for Kiro (local).
