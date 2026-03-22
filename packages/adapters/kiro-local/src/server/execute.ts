@@ -22,7 +22,7 @@ import {
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
 import { DEFAULT_KIRO_LOCAL_MODEL } from "../index.js";
-import { parseKiroOutput, isKiroUnknownSessionError } from "./parse.js";
+import { parseKiroOutput, isKiroUnknownSessionError, stripAnsi } from "./parse.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -401,6 +401,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       });
     }
 
+    const strippedOnLog: typeof onLog = async (stream, data) =>
+      onLog(stream, stream === "stderr" ? stripAnsi(data) : data);
+
     const proc = await runChildProcess(runId, command, args, {
       cwd,
       env: runtimeEnv,
@@ -408,7 +411,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       timeoutSec,
       graceSec,
       onSpawn,
-      onLog,
+      onLog: strippedOnLog,
     });
     return { proc };
   };
