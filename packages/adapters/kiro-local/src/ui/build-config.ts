@@ -100,7 +100,6 @@ export function buildAdapterConfig(values: CreateConfigValues): Record<string, u
   if (Object.keys(env).length > 0) config.env = env;
 
   if (values.maxTurnsPerRun) config.maxTurnsPerRun = values.maxTurnsPerRun;
-  if (values.dangerouslySkipPermissions) config.dangerouslySkipPermissions = true;
 
   // Workspace strategy
   if (values.workspaceStrategyType === "git_worktree") {
