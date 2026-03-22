@@ -25,9 +25,10 @@ function resolveKiroSkillsHome(): string {
 /**
  * Build a skill snapshot for the Kiro adapter.
  *
- * Kiro uses ephemeral skill injection: skills are written into ~/.kiro/skills
- * at execution time by `ensureKiroSkillsInjected()` in execute.ts, then cleaned
- * up afterward. The snapshot reflects what would be injected on the next run.
+ * Kiro uses persistent skill injection: skills are written into ~/.kiro/skills
+ * by `ensureKiroSkillsInjected()` in execute.ts and persist between runs.
+ * Each heartbeat repairs missing or changed skills. The snapshot reflects
+ * the current desired state.
  */
 async function buildKiroSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
   const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
@@ -48,7 +49,7 @@ async function buildKiroSkillSnapshot(config: Record<string, unknown>): Promise<
     sourcePath: entry.source,
     targetPath: null,
     detail: desiredSet.has(entry.key)
-      ? "Will be injected into the Kiro skills directory on the next run."
+      ? "Persists in the Kiro skills directory; repaired if missing or changed."
       : null,
     required: Boolean(entry.required),
     requiredReason: entry.requiredReason ?? null,
@@ -96,7 +97,7 @@ async function buildKiroSkillSnapshot(config: Record<string, unknown>): Promise<
   return {
     adapterType: "kiro_local",
     supported: true,
-    mode: "ephemeral",
+    mode: "persistent",
     desiredSkills,
     entries,
     warnings,

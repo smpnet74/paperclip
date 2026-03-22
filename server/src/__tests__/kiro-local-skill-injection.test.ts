@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ensureKiroSkillsInjected, cleanupKiroSkills } from "@paperclipai/adapter-kiro-local/server";
+import { ensureKiroSkillsInjected } from "@paperclipai/adapter-kiro-local/server";
 
 async function makeTempDir(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -103,9 +103,9 @@ describe("kiro local adapter skill injection", () => {
     expect(logs.some((line) => line.includes("already exists and is not Paperclip-managed"))).toBe(true);
   });
 
-  it("cleans up Paperclip-managed skills after execution", async () => {
-    const root = await makeTempDir("paperclip-kiro-cleanup-src-");
-    const skillsHome = await makeTempDir("paperclip-kiro-cleanup-home-");
+  it("skips unchanged managed skills on re-injection", async () => {
+    const root = await makeTempDir("paperclip-kiro-skip-src-");
+    const skillsHome = await makeTempDir("paperclip-kiro-skip-home-");
     cleanupDirs.add(root);
     cleanupDirs.add(skillsHome);
 
@@ -114,47 +114,19 @@ describe("kiro local adapter skill injection", () => {
 
     await createSkillSource(root, "paperclip", "# Paperclip Skill\n\nContent.");
 
-    // First inject
+    // First injection
     await ensureKiroSkillsInjected(async () => {}, { skillsHome, moduleDir });
 
-    // Verify skill was created
-    expect(await fs.stat(path.join(skillsHome, "paperclip", "SKILL.md")).then(() => true)).toBe(true);
-
-    // Now cleanup
+    // Second injection should skip (no "Injected" log)
     const logs: string[] = [];
-    await cleanupKiroSkills(
+    await ensureKiroSkillsInjected(
       async (_stream, chunk) => {
         logs.push(chunk);
       },
       { skillsHome, moduleDir },
     );
 
-    // Skill directory should be removed
-    await expect(fs.stat(path.join(skillsHome, "paperclip"))).rejects.toThrow();
-    expect(logs.some((line) => line.includes("Cleaned up Kiro skill: paperclip"))).toBe(true);
-  });
-
-  it("does not clean up user-owned skills", async () => {
-    const root = await makeTempDir("paperclip-kiro-noclean-src-");
-    const skillsHome = await makeTempDir("paperclip-kiro-noclean-home-");
-    cleanupDirs.add(root);
-    cleanupDirs.add(skillsHome);
-
-    const moduleDir = path.join(root, "a", "b");
-    await fs.mkdir(moduleDir, { recursive: true });
-
-    await createSkillSource(root, "paperclip", "# Paperclip Skill\n\nContent.");
-
-    // Create a user-owned skill (no managed marker)
-    const userSkillDir = path.join(skillsHome, "paperclip");
-    await fs.mkdir(userSkillDir, { recursive: true });
-    await fs.writeFile(path.join(userSkillDir, "SKILL.md"), "user content", "utf8");
-
-    await cleanupKiroSkills(async () => {}, { skillsHome, moduleDir });
-
-    // User's skill should still exist
-    const content = await fs.readFile(path.join(userSkillDir, "SKILL.md"), "utf8");
-    expect(content).toBe("user content");
+    expect(logs.some((line) => line.includes("Injected Kiro skill"))).toBe(false);
   });
 
   it("handles missing skills directory gracefully", async () => {
@@ -169,6 +141,5 @@ describe("kiro local adapter skill injection", () => {
 
     // Should not throw
     await ensureKiroSkillsInjected(async () => {}, { skillsHome, moduleDir });
-    await cleanupKiroSkills(async () => {}, { skillsHome, moduleDir });
   });
 });

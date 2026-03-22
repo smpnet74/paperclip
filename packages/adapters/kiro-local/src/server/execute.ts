@@ -41,25 +41,14 @@ function kiroSkillsHome(): string {
 }
 
 /**
- * Inject Paperclip skills into Kiro's skills directory.
+ * Ensure Paperclip skills are injected into Kiro's skills directory.
  *
- * Unlike other adapters (gemini-local, cursor-local) which use symlinks,
- * Kiro requires actual SKILL.md files with YAML frontmatter:
- *
- * ```markdown
- * ---
- * name: skill-name
- * description: Skill description
- * ---
- *
- * <skill body content>
- * ```
- *
- * This function:
+ * Skills persist between runs. On each heartbeat this function:
  * 1. Lists available Paperclip skills
- * 2. Reads each skill's markdown content
- * 3. Creates ~/.kiro/skills/<skill-name>/SKILL.md with YAML frontmatter
- * 4. Removes maintainer-only skills that are no longer available
+ * 2. Skips user-owned skills (no `.paperclip-managed` marker)
+ * 3. Content-diffs managed skills and skips unchanged ones
+ * 4. Writes new/updated skills as SKILL.md files with YAML frontmatter
+ * 5. Removes stale maintainer-only symlinks
  *
  * @param onLog - Logging callback for status messages
  */
@@ -181,42 +170,6 @@ ${skillContent}
         "stderr",
         `[paperclip] Failed to inject Kiro skill "${entry.runtimeName}": ${err instanceof Error ? err.message : String(err)}\n`,
       );
-    }
-  }
-}
-
-/**
- * Clean up injected Kiro skills after execution.
- *
- * Removes the skill directories created by ensureKiroSkillsInjected().
- * This is called in a finally block to ensure cleanup happens even on error.
- *
- * @param onLog - Logging callback for status messages
- */
-export async function cleanupKiroSkills(
-  onLog: AdapterExecutionContext["onLog"],
-  options?: KiroSkillsOptions,
-): Promise<void> {
-  const moduleDir = options?.moduleDir ?? __moduleDir;
-  const skillsEntries = await listPaperclipSkillEntries(moduleDir);
-  if (skillsEntries.length === 0) return;
-
-  const skillsHome = options?.skillsHome ?? kiroSkillsHome();
-  for (const entry of skillsEntries) {
-    const skillDir = path.join(skillsHome, entry.runtimeName);
-    try {
-      // Only delete skills we own (have a managed marker)
-      const managedMarker = path.join(skillDir, PAPERCLIP_MANAGED_MARKER);
-      const isManaged = await fs.stat(managedMarker).then(() => true).catch(() => false);
-      if (isManaged) {
-        await fs.rm(skillDir, { recursive: true, force: true });
-        await onLog(
-          "stdout",
-          `[paperclip] Cleaned up Kiro skill: ${entry.runtimeName}\n`,
-        );
-      }
-    } catch {
-      // Skip if we can't read/delete - not our skill or doesn't exist
     }
   }
 }
@@ -466,26 +419,21 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     };
   };
 
-  try {
-    const initial = await runAttempt(sessionId);
+  const initial = await runAttempt(sessionId);
 
-    // If session resume failed with unknown session error, retry without --resume
-    if (
-      sessionId &&
-      (initial.proc.exitCode ?? 0) !== 0 &&
-      isKiroUnknownSessionError(initial.proc.stdout, initial.proc.stderr)
-    ) {
-      await onLog(
-        "stdout",
-        `[paperclip] Kiro session "${sessionId}" is stale or unknown, retrying with a fresh session.\n`,
-      );
-      const retry = await runAttempt(null);
-      return toResult(retry, null);
-    }
-
-    return toResult(initial, sessionId);
-  } finally {
-    // Clean up injected skills after execution
-    await cleanupKiroSkills(onLog);
+  // If session resume failed with unknown session error, retry without --resume
+  if (
+    sessionId &&
+    (initial.proc.exitCode ?? 0) !== 0 &&
+    isKiroUnknownSessionError(initial.proc.stdout, initial.proc.stderr)
+  ) {
+    await onLog(
+      "stdout",
+      `[paperclip] Kiro session "${sessionId}" is stale or unknown, retrying with a fresh session.\n`,
+    );
+    const retry = await runAttempt(null);
+    return toResult(retry, null);
   }
+
+  return toResult(initial, sessionId);
 }
