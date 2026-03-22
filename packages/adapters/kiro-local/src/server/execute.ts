@@ -99,8 +99,13 @@ export async function ensureKiroSkillsInjected(
         );
       }
     }
-  } catch {
-    // Skills directory may not exist yet — nothing to prune
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      await onLog(
+        "stderr",
+        `[paperclip] Failed to prune stale Kiro skills in ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
+      );
+    }
   }
 
   if (skillsEntries.length === 0) return;
