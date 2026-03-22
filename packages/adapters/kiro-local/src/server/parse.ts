@@ -11,8 +11,8 @@
 const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*[mGKHfABCDsuJK]/g;
 // OSC sequences: \x1b]0;Title\x07
 const ANSI_OS_ESCAPE_RE = /\x1b\][0-9];[^\x07\x1b]*[\x07\x1b\\]/g;
-// Catch-all for remaining CSI sequences
-const CSI_RESET_RE = /\x1b\[?[0-9;]*[a-zA-Z]/g;
+// Catch-all for remaining CSI sequences (including private ?-prefixed like \x1b[?25l)
+const CSI_RESET_RE = /\x1b\[\??[0-9;]*[a-zA-Z]/g;
 
 /**
  * Strip all ANSI escape codes from text.

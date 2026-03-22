@@ -52,6 +52,11 @@ describe("stripAnsi", () => {
     const input = "\x1b[1mBold\x1b[0m \x1b[4mUnderline\x1b[0m";
     expect(stripAnsi(input)).toBe("Bold Underline");
   });
+
+  it("strips terminal cursor hide/show escape codes", () => {
+    const input = "\x1b[?25lSome output\x1b[?25h";
+    expect(stripAnsi(input)).toBe("Some output");
+  });
 });
 
 describe("parseCredits", () => {
