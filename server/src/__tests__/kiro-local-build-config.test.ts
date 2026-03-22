@@ -55,25 +55,30 @@ describe("buildAdapterConfig", () => {
     });
   });
 
-  describe("runtime services: timeoutSec", () => {
-    it("converts maxTurnsPerRun to timeoutSec (120s per turn)", () => {
+  describe("timeoutSec (always 0) and maxTurnsPerRun pass-through", () => {
+    it("always sets timeoutSec to 0 regardless of maxTurnsPerRun", () => {
       const cfg = buildAdapterConfig({ maxTurnsPerRun: 5 });
-      expect(cfg.timeoutSec).toBe(600); // 5 * 120
+      expect(cfg.timeoutSec).toBe(0);
     });
 
-    it("omits timeoutSec when maxTurnsPerRun is 0", () => {
-      const cfg = buildAdapterConfig({ maxTurnsPerRun: 0 });
-      expect(cfg.timeoutSec).toBeUndefined();
-    });
-
-    it("omits timeoutSec when maxTurnsPerRun is negative", () => {
-      const cfg = buildAdapterConfig({ maxTurnsPerRun: -1 });
-      expect(cfg.timeoutSec).toBeUndefined();
-    });
-
-    it("omits timeoutSec when maxTurnsPerRun is absent", () => {
+    it("always sets timeoutSec to 0 even when maxTurnsPerRun is absent", () => {
       const cfg = buildAdapterConfig({});
-      expect(cfg.timeoutSec).toBeUndefined();
+      expect(cfg.timeoutSec).toBe(0);
+    });
+
+    it("passes maxTurnsPerRun through directly when truthy", () => {
+      const cfg = buildAdapterConfig({ maxTurnsPerRun: 10 });
+      expect(cfg.maxTurnsPerRun).toBe(10);
+    });
+
+    it("omits maxTurnsPerRun when falsy (0)", () => {
+      const cfg = buildAdapterConfig({ maxTurnsPerRun: 0 });
+      expect(cfg.maxTurnsPerRun).toBeUndefined();
+    });
+
+    it("omits maxTurnsPerRun when absent", () => {
+      const cfg = buildAdapterConfig({});
+      expect(cfg.maxTurnsPerRun).toBeUndefined();
     });
   });
 
@@ -89,14 +94,14 @@ describe("buildAdapterConfig", () => {
     });
   });
 
-  describe("extraArgs (runtime service binding)", () => {
-    it("splits extraArgs on whitespace", () => {
-      const cfg = buildAdapterConfig({ extraArgs: "--verbose --debug" });
+  describe("extraArgs (comma-split)", () => {
+    it("splits extraArgs on commas", () => {
+      const cfg = buildAdapterConfig({ extraArgs: "--verbose,--debug" });
       expect(cfg.extraArgs).toEqual(["--verbose", "--debug"]);
     });
 
-    it("handles multiple spaces between args", () => {
-      const cfg = buildAdapterConfig({ extraArgs: "--flag1   --flag2" });
+    it("trims whitespace around comma-separated args", () => {
+      const cfg = buildAdapterConfig({ extraArgs: "--flag1 , --flag2" });
       expect(cfg.extraArgs).toEqual(["--flag1", "--flag2"]);
     });
 
@@ -110,31 +115,37 @@ describe("buildAdapterConfig", () => {
       expect(cfg.extraArgs).toBeUndefined();
     });
 
-    it("handles single arg", () => {
+    it("handles single arg (no comma needed)", () => {
       const cfg = buildAdapterConfig({ extraArgs: "--trust-all-tools" });
       expect(cfg.extraArgs).toEqual(["--trust-all-tools"]);
     });
   });
 
   describe("env bindings (envVars)", () => {
-    it("parses KEY=VALUE pairs into env object", () => {
+    it("parses KEY=VALUE pairs as plain-typed env objects", () => {
       const cfg = buildAdapterConfig({ envVars: "FOO=bar\nBAZ=qux" });
-      expect(cfg.env).toEqual({ FOO: "bar", BAZ: "qux" });
+      expect(cfg.env).toEqual({
+        FOO: { type: "plain", value: "bar" },
+        BAZ: { type: "plain", value: "qux" },
+      });
     });
 
     it("parses env var with value containing equals sign", () => {
       const cfg = buildAdapterConfig({ envVars: "TOKEN=abc=def" });
-      expect(cfg.env).toEqual({ TOKEN: "abc=def" });
+      expect(cfg.env).toEqual({ TOKEN: { type: "plain", value: "abc=def" } });
     });
 
     it("parses env var with empty value", () => {
       const cfg = buildAdapterConfig({ envVars: "EMPTY=" });
-      expect(cfg.env).toEqual({ EMPTY: "" });
+      expect(cfg.env).toEqual({ EMPTY: { type: "plain", value: "" } });
     });
 
     it("skips lines that are not KEY=VALUE format", () => {
       const cfg = buildAdapterConfig({ envVars: "VALID=yes\nnot-valid-no-equals\nALSO=ok" });
-      expect(cfg.env).toEqual({ VALID: "yes", ALSO: "ok" });
+      expect(cfg.env).toEqual({
+        VALID: { type: "plain", value: "yes" },
+        ALSO: { type: "plain", value: "ok" },
+      });
     });
 
     it("omits env when envVars is empty", () => {
@@ -165,16 +176,20 @@ describe("buildAdapterConfig", () => {
         model: "claude-sonnet-4.5",
         cwd: "/project",
         instructionsFilePath: "/project/AGENTS.md",
-        timeoutSec: 1200,
+        timeoutSec: 0,
+        maxTurnsPerRun: 10,
         graceSec: 15,
         extraArgs: ["--verbose"],
-        env: { API_KEY: "secret", DEBUG: "true" },
+        env: {
+          API_KEY: { type: "plain", value: "secret" },
+          DEBUG: { type: "plain", value: "true" },
+        },
       });
     });
 
     it("returns minimal config when all optional fields are absent", () => {
       const cfg = buildAdapterConfig({});
-      expect(cfg).toEqual({ graceSec: 15 });
+      expect(cfg).toEqual({ timeoutSec: 0, graceSec: 15 });
     });
   });
 });

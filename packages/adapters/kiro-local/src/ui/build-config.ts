@@ -91,7 +91,7 @@ export function buildAdapterConfig(values: CreateConfigValues): Record<string, u
 
   // Structured env bindings + legacy env vars
   const env = parseEnvBindings(values.envBindings);
-  const legacy = parseEnvVars(values.envVars);
+  const legacy = parseEnvVars(values.envVars ?? "");
   for (const [key, value] of Object.entries(legacy)) {
     if (!Object.prototype.hasOwnProperty.call(env, key)) {
       env[key] = { type: "plain", value };
