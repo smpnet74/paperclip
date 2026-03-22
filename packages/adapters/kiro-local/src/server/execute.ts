@@ -45,10 +45,11 @@ function kiroSkillsHome(): string {
  *
  * Skills persist between runs. On each heartbeat this function:
  * 1. Lists available Paperclip skills
- * 2. Skips user-owned skills (no `.paperclip-managed` marker)
- * 3. Content-diffs managed skills and skips unchanged ones
- * 4. Writes new/updated skills as SKILL.md files with YAML frontmatter
- * 5. Removes stale maintainer-only symlinks
+ * 2. Removes stale maintainer-only symlinks
+ * 3. Prunes managed skill directories no longer in the current skill set
+ * 4. Skips user-owned skills (no `.paperclip-managed` marker)
+ * 5. Content-diffs managed skills and skips unchanged ones
+ * 6. Writes new/updated skills as SKILL.md files with YAML frontmatter
  *
  * @param onLog - Logging callback for status messages
  */
@@ -58,8 +59,6 @@ export async function ensureKiroSkillsInjected(
 ): Promise<void> {
   const moduleDir = options?.moduleDir ?? __moduleDir;
   const skillsEntries = await listPaperclipSkillEntries(moduleDir);
-  if (skillsEntries.length === 0) return;
-
   const skillsHome = options?.skillsHome ?? kiroSkillsHome();
   try {
     await fs.mkdir(skillsHome, { recursive: true });
@@ -72,9 +71,10 @@ export async function ensureKiroSkillsInjected(
   }
 
   // Clean up maintainer-only skills (symlinks pointing to .agents/skills)
+  const currentSkillNames = new Set(skillsEntries.map((entry) => entry.runtimeName));
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
     skillsHome,
-    skillsEntries.map((entry) => entry.runtimeName),
+    [...currentSkillNames],
   );
   for (const skillName of removedSkills) {
     await onLog(
@@ -82,6 +82,28 @@ export async function ensureKiroSkillsInjected(
       `[paperclip] Removed maintainer-only Kiro skill "${skillName}" from ${skillsHome}\n`,
     );
   }
+
+  // Prune stale managed skill directories no longer in the current skill set
+  try {
+    const entries = await fs.readdir(skillsHome, { withFileTypes: true });
+    for (const dirEntry of entries) {
+      if (!dirEntry.isDirectory()) continue;
+      if (currentSkillNames.has(dirEntry.name)) continue;
+      const markerPath = path.join(skillsHome, dirEntry.name, PAPERCLIP_MANAGED_MARKER);
+      const isManaged = await fs.stat(markerPath).then(() => true).catch(() => false);
+      if (isManaged) {
+        await fs.rm(path.join(skillsHome, dirEntry.name), { recursive: true, force: true });
+        await onLog(
+          "stdout",
+          `[paperclip] Pruned stale Kiro skill "${dirEntry.name}" from ${skillsHome}\n`,
+        );
+      }
+    }
+  } catch {
+    // Skills directory may not exist yet — nothing to prune
+  }
+
+  if (skillsEntries.length === 0) return;
 
   // Inject each Paperclip skill as a SKILL.md file with YAML frontmatter
   for (const entry of skillsEntries) {
