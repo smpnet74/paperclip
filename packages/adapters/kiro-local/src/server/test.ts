@@ -1,3 +1,4 @@
+import path from "node:path";
 import type {
   AdapterEnvironmentTestContext,
   AdapterEnvironmentTestResult,
@@ -12,6 +13,11 @@ import {
   asString,
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
+
+function commandLooksLikeKiroCli(command: string): boolean {
+  const base = path.basename(command).toLowerCase();
+  return base === "kiro-cli" || base === "kiro-cli.cmd" || base === "kiro-cli.exe";
+}
 
 /**
  * Test Kiro CLI environment.
@@ -83,7 +89,7 @@ export async function testEnvironment(
   }
 
   // Check 3: whoami probe (skip for custom commands)
-  if (command !== "kiro-cli") {
+  if (!commandLooksLikeKiroCli(command)) {
     addCheck(
       "kiro_whoami_probe_skipped_custom_command",
       "info",

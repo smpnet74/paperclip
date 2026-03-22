@@ -26,8 +26,20 @@ export const models = [
 
 export const DEFAULT_KIRO_LOCAL_MODEL = "auto" as const;
 
-export const agentConfigurationDoc = `
-# Kiro (local) Agent Configuration
+export const agentConfigurationDoc = `# kiro_local agent configuration
+
+Adapter: kiro_local
+
+Use when:
+- You want Paperclip to run the Kiro CLI locally on the host machine
+- You want multi-provider model access (Claude, DeepSeek, MiniMax, Qwen) via a single CLI
+- You want Paperclip skills injected as SKILL.md files into ~/.kiro/skills/
+- You want headless execution with session resumption across heartbeats
+
+Don't use when:
+- You need webhook-style external invocation (use http or openclaw_gateway)
+- You only need a one-shot script without an AI coding agent loop (use process)
+- Kiro CLI is not installed on the machine that runs Paperclip
 
 ## Prerequisites
 

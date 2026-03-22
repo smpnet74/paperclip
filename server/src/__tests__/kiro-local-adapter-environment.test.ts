@@ -43,7 +43,7 @@ function mockResult(overrides: Partial<RunProcessResult> = {}): RunProcessResult
 describe("testEnvironment", () => {
   const mockContext: AdapterEnvironmentTestContext = {
     companyId: "test-company",
-    adapterType: "kiro",
+    adapterType: "kiro_local",
     config: {
       command: "kiro-cli",
       cwd: "/tmp/test",
