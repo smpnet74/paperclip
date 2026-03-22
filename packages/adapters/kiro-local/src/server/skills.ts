@@ -7,6 +7,7 @@ import type {
   AdapterSkillSnapshot,
 } from "@paperclipai/adapter-utils";
 import {
+  asString,
   readPaperclipRuntimeSkillEntries,
   readInstalledSkillTargets,
   resolvePaperclipDesiredSkillNames,
@@ -35,7 +36,11 @@ async function buildKiroSkillSnapshot(config: Record<string, unknown>): Promise<
   const availableByKey = new Map(availableEntries.map((entry) => [entry.key, entry]));
   const desiredSkills = resolvePaperclipDesiredSkillNames(config, availableEntries);
   const desiredSet = new Set(desiredSkills);
-  const skillsHome = resolveKiroSkillsHome();
+  const configSkillsHome = asString(config.skillsHome, "").trim();
+  const skillsHome = configSkillsHome || resolveKiroSkillsHome();
+  const companyPrefix = asString(config.companyPrefix, "").trim().toLowerCase();
+  const skillDirName = (runtimeName: string): string =>
+    companyPrefix ? `${companyPrefix}--${runtimeName}` : runtimeName;
   const installed = await readInstalledSkillTargets(skillsHome);
   const entries: AdapterSkillEntry[] = availableEntries.map((entry) => ({
     key: entry.key,
@@ -75,7 +80,7 @@ async function buildKiroSkillSnapshot(config: Record<string, unknown>): Promise<
   }
 
   for (const [name, installedEntry] of installed.entries()) {
-    if (availableEntries.some((entry) => entry.runtimeName === name)) continue;
+    if (availableEntries.some((entry) => skillDirName(entry.runtimeName) === name)) continue;
     entries.push({
       key: name,
       runtimeName: name,

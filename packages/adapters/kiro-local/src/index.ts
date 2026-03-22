@@ -62,6 +62,8 @@ Don't use when:
 | \`graceSec\` | Grace period for SIGTERM | \`15\` |
 | \`extraArgs\` | Additional CLI flags | \`[]\` |
 | \`env\` | Environment variable overrides | \`{}\` |
+| \`companyPrefix\` | Namespace prefix for skill directories (e.g. \`"dem"\` → \`dem--paperclip\`). Prevents cross-company skill collisions in \`~/.kiro/skills/\`. | Empty (no prefix) |
+| \`skillsHome\` | Override path for Kiro skills directory. Useful for full isolation between companies. | \`~/.kiro/skills\` |
 
 ## Models (kiro-cli v1.28.0+)
 
@@ -86,7 +88,7 @@ The adapter runs:
 kiro-cli chat --no-interactive --trust-all-tools --wrap never --model <model>
 \`\`\`
 
-Skills are injected into \`~/.kiro/skills/<name>/SKILL.md\` with YAML frontmatter.
+Skills are injected into \`~/.kiro/skills/<companyPrefix>--<name>/SKILL.md\` with YAML frontmatter (or \`~/.kiro/skills/<name>/SKILL.md\` when \`companyPrefix\` is not set).
 Sessions are resumed via \`--resume\` based on working directory.
 
 ## Notes

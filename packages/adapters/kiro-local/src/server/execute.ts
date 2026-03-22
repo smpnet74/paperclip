@@ -26,11 +26,8 @@ import { parseKiroOutput, isKiroUnknownSessionError, stripAnsi } from "./parse.j
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
-/** JSON content written to the `.paperclip-managed` marker file. */
-export type PaperclipManagedMarker = { agentId: string; companyId: string; skillName: string };
-
 /** Options for Kiro skill injection and cleanup. */
-export type KiroSkillsOptions = { skillsHome?: string; moduleDir?: string; agentId?: string; companyId?: string };
+export type KiroSkillsOptions = { skillsHome?: string; moduleDir?: string; companyPrefix?: string };
 
 /** Marker file written to Paperclip-managed skill directories for safe cleanup. */
 const PAPERCLIP_MANAGED_MARKER = ".paperclip-managed";
@@ -41,30 +38,6 @@ const PAPERCLIP_MANAGED_MARKER = ".paperclip-managed";
  */
 function kiroSkillsHome(): string {
   return path.join(os.homedir(), ".kiro", "skills");
-}
-
-/**
- * Parse a `.paperclip-managed` marker file.
- * Returns the parsed JSON marker if valid, or `null` for legacy plain-text markers.
- */
-export function parseManagedMarker(content: string): PaperclipManagedMarker | null {
-  const trimmed = content.trim();
-  if (!trimmed.startsWith("{")) return null;
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      typeof parsed.agentId === "string" &&
-      typeof parsed.companyId === "string" &&
-      typeof parsed.skillName === "string"
-    ) {
-      return parsed as PaperclipManagedMarker;
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -87,6 +60,9 @@ export async function ensureKiroSkillsInjected(
   const moduleDir = options?.moduleDir ?? __moduleDir;
   const skillsEntries = await listPaperclipSkillEntries(moduleDir);
   const skillsHome = options?.skillsHome ?? kiroSkillsHome();
+  const companyPrefix = options?.companyPrefix ?? "";
+  const skillDirName = (runtimeName: string): string =>
+    companyPrefix ? `${companyPrefix}--${runtimeName}` : runtimeName;
   try {
     await fs.mkdir(skillsHome, { recursive: true });
   } catch (err) {
@@ -98,10 +74,10 @@ export async function ensureKiroSkillsInjected(
   }
 
   // Clean up maintainer-only skills (symlinks pointing to .agents/skills)
-  const currentSkillNames = new Set(skillsEntries.map((entry) => entry.runtimeName));
+  const currentSkillDirNames = new Set(skillsEntries.map((entry) => skillDirName(entry.runtimeName)));
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
     skillsHome,
-    [...currentSkillNames],
+    [...currentSkillDirNames],
   );
   for (const skillName of removedSkills) {
     await onLog(
@@ -110,36 +86,15 @@ export async function ensureKiroSkillsInjected(
     );
   }
 
-  // Prune stale managed skill directories no longer in the current skill set.
-  // Only prune skills whose marker matches the current agent+company to avoid
-  // cross-agent/cross-company skill destruction.
-  const agentId = options?.agentId;
-  const companyId = options?.companyId;
+  // Prune stale managed skill directories no longer in the current skill set
   try {
     const entries = await fs.readdir(skillsHome, { withFileTypes: true });
     for (const dirEntry of entries) {
       if (!dirEntry.isDirectory()) continue;
-      if (currentSkillNames.has(dirEntry.name)) continue;
+      if (currentSkillDirNames.has(dirEntry.name)) continue;
       const markerPath = path.join(skillsHome, dirEntry.name, PAPERCLIP_MANAGED_MARKER);
-      let markerContent: string;
-      try {
-        markerContent = await fs.readFile(markerPath, "utf8");
-      } catch {
-        // No marker — user-owned skill, skip
-        continue;
-      }
-      // Parse marker: new JSON format or legacy plain-text format
-      const marker = parseManagedMarker(markerContent);
-      if (!marker) {
-        // Legacy plain-text marker with unknown owner — skip to avoid destroying another agent's skills
-        await onLog(
-          "stdout",
-          `[paperclip] Skipping prune of "${dirEntry.name}" — legacy marker without owner info\n`,
-        );
-        continue;
-      }
-      // Only prune if this skill belongs to the current agent+company
-      if (agentId && companyId && marker.agentId === agentId && marker.companyId === companyId) {
+      const isManaged = await fs.stat(markerPath).then(() => true).catch(() => false);
+      if (isManaged) {
         await fs.rm(path.join(skillsHome, dirEntry.name), { recursive: true, force: true });
         await onLog(
           "stdout",
@@ -160,7 +115,7 @@ export async function ensureKiroSkillsInjected(
 
   // Inject each Paperclip skill as a SKILL.md file with YAML frontmatter
   for (const entry of skillsEntries) {
-    const skillDir = path.join(skillsHome, entry.runtimeName);
+    const skillDir = path.join(skillsHome, skillDirName(entry.runtimeName));
     const skillFile = path.join(skillDir, "SKILL.md");
     const managedMarker = path.join(skillDir, PAPERCLIP_MANAGED_MARKER);
 
@@ -235,12 +190,7 @@ ${skillContent}
 `;
 
       await fs.writeFile(skillFile, kiroSkillMd, "utf8");
-      const markerData: PaperclipManagedMarker = {
-        agentId: agentId ?? "",
-        companyId: companyId ?? "",
-        skillName: entry.runtimeName,
-      };
-      await fs.writeFile(managedMarker, JSON.stringify(markerData) + "\n", "utf8");
+      await fs.writeFile(managedMarker, `${entry.runtimeName}\n`, "utf8");
       await onLog(
         "stdout",
         `[paperclip] Injected Kiro skill: ${entry.runtimeName}\n`,
@@ -275,8 +225,13 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
 
-  // Inject Kiro skills before execution (scoped to current agent+company)
-  await ensureKiroSkillsInjected(onLog, { agentId: agent.id, companyId: agent.companyId });
+  // Inject Kiro skills before execution
+  const configCompanyPrefix = asString(config.companyPrefix, "").trim().toLowerCase();
+  const configSkillsHome = asString(config.skillsHome, "").trim();
+  await ensureKiroSkillsInjected(onLog, {
+    ...(configCompanyPrefix ? { companyPrefix: configCompanyPrefix } : {}),
+    ...(configSkillsHome ? { skillsHome: configSkillsHome } : {}),
+  });
 
   const envConfig = parseObject(config.env);
   const hasExplicitApiKey =
