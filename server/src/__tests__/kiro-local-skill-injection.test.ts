@@ -129,6 +129,45 @@ describe("kiro local adapter skill injection", () => {
     expect(logs.some((line) => line.includes("Injected Kiro skill"))).toBe(false);
   });
 
+  it("namespaces skill directories by company prefix", async () => {
+    const root = await makeTempDir("paperclip-kiro-ns-src-");
+    const skillsHome = await makeTempDir("paperclip-kiro-ns-home-");
+    cleanupDirs.add(root);
+    cleanupDirs.add(skillsHome);
+
+    const moduleDir = path.join(root, "a", "b");
+    await fs.mkdir(moduleDir, { recursive: true });
+
+    await createSkillSource(root, "paperclip", "# Paperclip Skill\n\nInteract with Paperclip.");
+
+    const logs: string[] = [];
+    await ensureKiroSkillsInjected(
+      async (_stream, chunk) => {
+        logs.push(chunk);
+      },
+      { skillsHome, moduleDir, companyPrefix: "dem" },
+    );
+
+    // Directory must be namespaced as "dem--paperclip"
+    const namespacedDir = path.join(skillsHome, "dem--paperclip");
+    const skillFile = path.join(namespacedDir, "SKILL.md");
+    const content = await fs.readFile(skillFile, "utf8");
+
+    // SKILL.md frontmatter name stays unprefixed
+    expect(content).toMatch(/^---\nname: paperclip\ndescription: /);
+    expect(content).toContain("Interact with Paperclip.");
+
+    // Managed marker exists under namespaced dir
+    const marker = path.join(namespacedDir, ".paperclip-managed");
+    expect(await fs.stat(marker).then(() => true)).toBe(true);
+
+    // Un-namespaced dir must NOT exist
+    const unprefixedDir = path.join(skillsHome, "paperclip");
+    expect(await fs.stat(unprefixedDir).then(() => true).catch(() => false)).toBe(false);
+
+    expect(logs.some((line) => line.includes("Injected Kiro skill: paperclip"))).toBe(true);
+  });
+
   it("handles missing skills directory gracefully", async () => {
     const root = await makeTempDir("paperclip-kiro-empty-src-");
     const skillsHome = await makeTempDir("paperclip-kiro-empty-home-");
