@@ -318,7 +318,8 @@ test.describe("kiro_local adapter — Agent Edit page (Configuration tab)", () =
     await page.waitForTimeout(1000);
 
     await expect(page.locator("text=Working directory").first()).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator("text=Agent instructions file").first()).toBeVisible();
+    // Agent instructions file is hidden on edit page (hideInstructionsFile is always true)
+    await expect(page.locator("text=Agent instructions file").first()).toBeHidden();
     await expect(page.locator("text=Command").first()).toBeVisible();
     await expect(page.locator("text=Extra args").first()).toBeVisible();
     await expect(page.locator("text=Environment variables").first()).toBeVisible();
