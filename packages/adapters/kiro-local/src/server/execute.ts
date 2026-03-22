@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AdapterExecutionContext, AdapterExecutionResult } from "@paperclipai/adapter-utils";
@@ -22,6 +21,7 @@ import {
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
 import { DEFAULT_KIRO_LOCAL_MODEL } from "../index.js";
+import { kiroSkillsHome } from "./paths.js";
 import { parseKiroOutput, isKiroUnknownSessionError, stripAnsi } from "./parse.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -31,18 +31,6 @@ export type KiroSkillsOptions = { skillsHome?: string; moduleDir?: string; compa
 
 /** Marker file written to Paperclip-managed skill directories for safe cleanup. */
 const PAPERCLIP_MANAGED_MARKER = ".paperclip-managed";
-
-/**
- * Kiro skills home directory.
- *
- * Always returns ~/.kiro/skills/ — Kiro only scans top-level subdirectories
- * for SKILL.md files and does not recurse into nested directories.
- * Cross-company isolation is handled by the `<companyPrefix>--<skillName>`
- * directory naming convention, not by subdirectory nesting.
- */
-function kiroSkillsHome(): string {
-  return path.join(os.homedir(), ".kiro", "skills");
-}
 
 /** Log a warning when skills are using the unsafe global default. */
 async function warnIfGlobalSkillsHome(
@@ -199,7 +187,7 @@ export async function ensureKiroSkillsInjected(
 
       // Escape YAML values to handle colons, quotes, newlines
       const escapeYaml = (val: string): string => {
-        if (/[:\n"'#]/.test(val) || val.startsWith(" ") || val.endsWith(" ")) {
+        if (/[:\n"'#|>\[{&*!?%@`]/.test(val) || val.startsWith(" ") || val.endsWith(" ")) {
           return `"${val.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
         }
         return val;
@@ -412,6 +400,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const buildArgs = (resumeSessionId: string | null) => {
     const args = ["chat", "--no-interactive", "--trust-all-tools", "--wrap", "never"];
     if (model && model !== DEFAULT_KIRO_LOCAL_MODEL) args.push("--model", model);
+    // kiro-cli matches the session by cwd; no explicit session ID argument is needed
     if (resumeSessionId) args.push("--resume");
     if (extraArgs.length > 0) args.push(...extraArgs);
     return args;

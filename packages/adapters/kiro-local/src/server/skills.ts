@@ -1,4 +1,3 @@
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
@@ -12,18 +11,9 @@ import {
   readInstalledSkillTargets,
   resolvePaperclipDesiredSkillNames,
 } from "@paperclipai/adapter-utils/server-utils";
+import { kiroSkillsHome } from "./paths.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
-
-/**
- * Kiro skills home directory.
- *
- * Always returns ~/.kiro/skills/ — Kiro only scans top-level subdirectories
- * for SKILL.md files. Cross-company isolation uses `<prefix>--<name>` naming.
- */
-function resolveKiroSkillsHome(): string {
-  return path.join(os.homedir(), ".kiro", "skills");
-}
 
 /**
  * Build a skill snapshot for the Kiro adapter.
@@ -40,7 +30,7 @@ async function buildKiroSkillSnapshot(config: Record<string, unknown>): Promise<
   const desiredSet = new Set(desiredSkills);
   const companyPrefix = asString(config.companyPrefix, "").trim().toLowerCase();
   const configSkillsHome = asString(config.skillsHome, "").trim();
-  const skillsHome = configSkillsHome || resolveKiroSkillsHome();
+  const skillsHome = configSkillsHome || kiroSkillsHome();
   const skillDirName = (runtimeName: string): string =>
     companyPrefix ? `${companyPrefix}--${runtimeName}` : runtimeName;
   const installed = await readInstalledSkillTargets(skillsHome);
