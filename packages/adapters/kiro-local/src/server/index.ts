@@ -40,8 +40,12 @@ export const sessionCodec: AdapterSessionCodec = {
       return null;
     }
     const params = raw as Record<string, unknown>;
+    const sessionId = typeof params.sessionId === "string" && params.sessionId.trim().length > 0
+      ? params.sessionId.trim()
+      : null;
+    if (!sessionId) return null;
     return {
-      sessionId: typeof params.sessionId === "string" ? params.sessionId : null,
+      sessionId,
       cwd: typeof params.cwd === "string" ? params.cwd : null,
       workspaceId: typeof params.workspaceId === "string" ? params.workspaceId : null,
       repoUrl: typeof params.repoUrl === "string" ? params.repoUrl : null,

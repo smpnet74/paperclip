@@ -83,9 +83,6 @@ export function buildAdapterConfig(values: CreateConfigValues): Record<string, u
   if (values.model && values.model.trim()) {
     config.model = values.model.trim();
   }
-  if (values.thinkingEffort) {
-    config.effort = values.thinkingEffort;
-  }
   config.timeoutSec = 0;
   config.graceSec = 15;
 
@@ -98,8 +95,6 @@ export function buildAdapterConfig(values: CreateConfigValues): Record<string, u
     }
   }
   if (Object.keys(env).length > 0) config.env = env;
-
-  if (values.maxTurnsPerRun) config.maxTurnsPerRun = values.maxTurnsPerRun;
 
   // Workspace strategy
   if (values.workspaceStrategyType === "git_worktree") {
@@ -122,15 +117,6 @@ export function buildAdapterConfig(values: CreateConfigValues): Record<string, u
   }
   if (values.extraArgs && values.extraArgs.trim()) {
     config.extraArgs = parseCommaArgs(values.extraArgs);
-  }
-
-  if (values.workspaceStrategyType === "git_worktree") {
-    config.workspaceStrategy = {
-      type: "git_worktree",
-      ...(values.workspaceBaseRef ? { baseRef: values.workspaceBaseRef } : {}),
-      ...(values.workspaceBranchTemplate ? { branchTemplate: values.workspaceBranchTemplate } : {}),
-      ...(values.worktreeParentDir ? { worktreeParentDir: values.worktreeParentDir } : {}),
-    };
   }
 
   return config;

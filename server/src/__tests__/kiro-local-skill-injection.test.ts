@@ -212,6 +212,83 @@ describe("kiro local adapter skill injection", () => {
     expect(await fs.stat(markerB).then(() => true).catch(() => false)).toBe(true);
   });
 
+  it("does not delete another company's managed skills during pruning", async () => {
+    const root = await makeTempDir("paperclip-kiro-crossco-src-");
+    const skillsHome = await makeTempDir("paperclip-kiro-crossco-home-");
+    cleanupDirs.add(root);
+    cleanupDirs.add(skillsHome);
+
+    const moduleDir = path.join(root, "a", "b");
+    await fs.mkdir(moduleDir, { recursive: true });
+
+    await createSkillSource(root, "paperclip", "# Paperclip Skill\n\nInteract with Paperclip.");
+
+    // Inject skills for company A (prefix "a")
+    await ensureKiroSkillsInjected(async () => {}, {
+      skillsHome,
+      moduleDir,
+      companyPrefix: "a",
+    });
+
+    // Inject skills for company B (prefix "b")
+    await ensureKiroSkillsInjected(async () => {}, {
+      skillsHome,
+      moduleDir,
+      companyPrefix: "b",
+    });
+
+    // Both companies' skills exist
+    expect(await fs.stat(path.join(skillsHome, "a--paperclip", "SKILL.md")).then(() => true).catch(() => false)).toBe(true);
+    expect(await fs.stat(path.join(skillsHome, "b--paperclip", "SKILL.md")).then(() => true).catch(() => false)).toBe(true);
+
+    // Re-run company A injection — company B's skills must survive
+    const logs: string[] = [];
+    await ensureKiroSkillsInjected(
+      async (_stream, chunk) => { logs.push(chunk); },
+      { skillsHome, moduleDir, companyPrefix: "a" },
+    );
+
+    // Company B's skills must NOT be deleted
+    expect(await fs.stat(path.join(skillsHome, "b--paperclip", "SKILL.md")).then(() => true).catch(() => false)).toBe(true);
+    expect(await fs.stat(path.join(skillsHome, "b--paperclip", ".paperclip-managed")).then(() => true).catch(() => false)).toBe(true);
+
+    // Company A's skills still present
+    expect(await fs.stat(path.join(skillsHome, "a--paperclip", "SKILL.md")).then(() => true).catch(() => false)).toBe(true);
+
+    // No pruning log for company B's skills
+    expect(logs.some((line) => line.includes("b--paperclip"))).toBe(false);
+  });
+
+  it("prunes stale skills only within the same company prefix", async () => {
+    const root = await makeTempDir("paperclip-kiro-prune-prefix-src-");
+    const skillsHome = await makeTempDir("paperclip-kiro-prune-prefix-home-");
+    cleanupDirs.add(root);
+    cleanupDirs.add(skillsHome);
+
+    const moduleDir = path.join(root, "a", "b");
+    await fs.mkdir(moduleDir, { recursive: true });
+
+    // Create two skills
+    await createSkillSource(root, "paperclip", "# Paperclip\n\nContent.");
+    await createSkillSource(root, "old-skill", "# Old\n\nWill be removed.");
+
+    // Inject both for company "x"
+    await ensureKiroSkillsInjected(async () => {}, { skillsHome, moduleDir, companyPrefix: "x" });
+    expect(await fs.stat(path.join(skillsHome, "x--old-skill", "SKILL.md")).then(() => true).catch(() => false)).toBe(true);
+
+    // Remove old-skill from source, re-inject
+    await fs.rm(path.join(root, "skills", "old-skill"), { recursive: true });
+    const logs: string[] = [];
+    await ensureKiroSkillsInjected(
+      async (_stream, chunk) => { logs.push(chunk); },
+      { skillsHome, moduleDir, companyPrefix: "x" },
+    );
+
+    // old-skill should be pruned
+    expect(await fs.stat(path.join(skillsHome, "x--old-skill")).then(() => true).catch(() => false)).toBe(false);
+    expect(logs.some((line) => line.includes('Pruned stale Kiro skill "x--old-skill"'))).toBe(true);
+  });
+
   it("handles missing skills directory gracefully", async () => {
     const root = await makeTempDir("paperclip-kiro-empty-src-");
     const skillsHome = await makeTempDir("paperclip-kiro-empty-home-");

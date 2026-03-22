@@ -258,6 +258,8 @@ describe("execute", () => {
       });
       // sessionDisplayId should also be fresh
       expect(result.sessionDisplayId).not.toBe(staleSessionId);
+      // clearSession must be true so the broken session is cleared
+      expect(result.clearSession).toBe(true);
     });
 
     it("does not retry on non-session errors", async () => {

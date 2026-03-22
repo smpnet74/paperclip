@@ -55,29 +55,15 @@ describe("buildAdapterConfig", () => {
     });
   });
 
-  describe("timeoutSec (always 0) and maxTurnsPerRun pass-through", () => {
-    it("always sets timeoutSec to 0 regardless of maxTurnsPerRun", () => {
-      const cfg = buildAdapterConfig({ maxTurnsPerRun: 5 });
-      expect(cfg.timeoutSec).toBe(0);
-    });
-
-    it("always sets timeoutSec to 0 even when maxTurnsPerRun is absent", () => {
+  describe("timeoutSec (always 0)", () => {
+    it("always sets timeoutSec to 0", () => {
       const cfg = buildAdapterConfig({});
       expect(cfg.timeoutSec).toBe(0);
     });
 
-    it("passes maxTurnsPerRun through directly when truthy", () => {
-      const cfg = buildAdapterConfig({ maxTurnsPerRun: 10 });
-      expect(cfg.maxTurnsPerRun).toBe(10);
-    });
-
-    it("omits maxTurnsPerRun when falsy (0)", () => {
-      const cfg = buildAdapterConfig({ maxTurnsPerRun: 0 });
-      expect(cfg.maxTurnsPerRun).toBeUndefined();
-    });
-
-    it("omits maxTurnsPerRun when absent", () => {
-      const cfg = buildAdapterConfig({});
+    it("does not persist effort or maxTurnsPerRun (dead fields)", () => {
+      const cfg = buildAdapterConfig({ thinkingEffort: "high", maxTurnsPerRun: 10 } as Record<string, unknown>);
+      expect(cfg.effort).toBeUndefined();
       expect(cfg.maxTurnsPerRun).toBeUndefined();
     });
   });
@@ -89,7 +75,7 @@ describe("buildAdapterConfig", () => {
     });
 
     it("sets graceSec to 15 even when other fields are provided", () => {
-      const cfg = buildAdapterConfig({ command: "kiro-cli", model: "auto", maxTurnsPerRun: 3 });
+      const cfg = buildAdapterConfig({ command: "kiro-cli", model: "auto" });
       expect(cfg.graceSec).toBe(15);
     });
   });
@@ -166,7 +152,6 @@ describe("buildAdapterConfig", () => {
         model: "claude-sonnet-4.5",
         cwd: "/project",
         instructionsFilePath: "/project/AGENTS.md",
-        maxTurnsPerRun: 10,
         extraArgs: "--verbose",
         envVars: "API_KEY=secret\nDEBUG=true",
       });
@@ -177,7 +162,6 @@ describe("buildAdapterConfig", () => {
         cwd: "/project",
         instructionsFilePath: "/project/AGENTS.md",
         timeoutSec: 0,
-        maxTurnsPerRun: 10,
         graceSec: 15,
         extraArgs: ["--verbose"],
         env: {
@@ -185,6 +169,9 @@ describe("buildAdapterConfig", () => {
           DEBUG: { type: "plain", value: "true" },
         },
       });
+      // Dead fields must not be persisted
+      expect(cfg.maxTurnsPerRun).toBeUndefined();
+      expect(cfg.effort).toBeUndefined();
     });
 
     it("returns minimal config when all optional fields are absent", () => {

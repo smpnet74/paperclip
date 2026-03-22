@@ -17,10 +17,12 @@ const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Kiro skills home directory.
- * Kiro expects skills at ~/.kiro/skills/<skill-name>/SKILL.md
+ * When a company prefix is provided, skills are isolated under
+ * ~/.kiro/skills/<companyPrefix>/ to prevent cross-company collisions.
  */
-function resolveKiroSkillsHome(): string {
-  return path.join(os.homedir(), ".kiro", "skills");
+function resolveKiroSkillsHome(companyPrefix?: string): string {
+  const base = path.join(os.homedir(), ".kiro", "skills");
+  return companyPrefix ? path.join(base, companyPrefix) : base;
 }
 
 /**
@@ -36,9 +38,9 @@ async function buildKiroSkillSnapshot(config: Record<string, unknown>): Promise<
   const availableByKey = new Map(availableEntries.map((entry) => [entry.key, entry]));
   const desiredSkills = resolvePaperclipDesiredSkillNames(config, availableEntries);
   const desiredSet = new Set(desiredSkills);
-  const configSkillsHome = asString(config.skillsHome, "").trim();
-  const skillsHome = configSkillsHome || resolveKiroSkillsHome();
   const companyPrefix = asString(config.companyPrefix, "").trim().toLowerCase();
+  const configSkillsHome = asString(config.skillsHome, "").trim();
+  const skillsHome = configSkillsHome || resolveKiroSkillsHome(companyPrefix || undefined);
   const skillDirName = (runtimeName: string): string =>
     companyPrefix ? `${companyPrefix}--${runtimeName}` : runtimeName;
   const installed = await readInstalledSkillTargets(skillsHome);

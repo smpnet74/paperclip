@@ -34,10 +34,29 @@ const PAPERCLIP_MANAGED_MARKER = ".paperclip-managed";
 
 /**
  * Kiro skills home directory.
- * Kiro expects skills at ~/.kiro/skills/<skill-name>/SKILL.md
+ * When a company prefix is provided, skills are isolated under
+ * ~/.kiro/skills/<companyPrefix>/ to prevent cross-company collisions.
+ * Without a prefix, falls back to the global ~/.kiro/skills/.
  */
-function kiroSkillsHome(): string {
-  return path.join(os.homedir(), ".kiro", "skills");
+function kiroSkillsHome(companyPrefix?: string): string {
+  const base = path.join(os.homedir(), ".kiro", "skills");
+  return companyPrefix ? path.join(base, companyPrefix) : base;
+}
+
+/** Log a warning when skills are using the unsafe global default. */
+async function warnIfGlobalSkillsHome(
+  onLog: AdapterExecutionContext["onLog"],
+  companyPrefix: string,
+  skillsHome: string | undefined,
+): Promise<void> {
+  if (!companyPrefix && !skillsHome) {
+    await onLog(
+      "stdout",
+      `[paperclip] Warning: no companyPrefix configured for kiro-local adapter. ` +
+        `Skills default to the global ~/.kiro/skills/ directory, which is shared state. ` +
+        `Set companyPrefix in adapterConfig to isolate skills per company.\n`,
+    );
+  }
 }
 
 /**
@@ -59,8 +78,8 @@ export async function ensureKiroSkillsInjected(
 ): Promise<void> {
   const moduleDir = options?.moduleDir ?? __moduleDir;
   const skillsEntries = await listPaperclipSkillEntries(moduleDir);
-  const skillsHome = options?.skillsHome ?? kiroSkillsHome();
   const companyPrefix = options?.companyPrefix ?? "";
+  const skillsHome = options?.skillsHome ?? kiroSkillsHome(companyPrefix || undefined);
   const skillDirName = (runtimeName: string): string =>
     companyPrefix ? `${companyPrefix}--${runtimeName}` : runtimeName;
   try {
@@ -86,12 +105,17 @@ export async function ensureKiroSkillsInjected(
     );
   }
 
-  // Prune stale managed skill directories no longer in the current skill set
+  // Prune stale managed skill directories no longer in the current skill set.
+  // Only prune directories matching the current company prefix to avoid
+  // deleting another company's managed skills from the same skillsHome.
   try {
     const entries = await fs.readdir(skillsHome, { withFileTypes: true });
     for (const dirEntry of entries) {
       if (!dirEntry.isDirectory()) continue;
       if (currentSkillDirNames.has(dirEntry.name)) continue;
+      // Skip directories that don't match the current company prefix
+      if (companyPrefix && !dirEntry.name.startsWith(`${companyPrefix}--`)) continue;
+      if (!companyPrefix && dirEntry.name.includes("--")) continue;
       const markerPath = path.join(skillsHome, dirEntry.name, PAPERCLIP_MANAGED_MARKER);
       const isManaged = await fs.stat(markerPath).then(() => true).catch(() => false);
       if (isManaged) {
@@ -245,6 +269,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   // Inject Kiro skills before execution
   const configCompanyPrefix = asString(config.companyPrefix, "").trim().toLowerCase();
   const configSkillsHome = asString(config.skillsHome, "").trim();
+  await warnIfGlobalSkillsHome(onLog, configCompanyPrefix, configSkillsHome || undefined);
   await ensureKiroSkillsInjected(onLog, {
     ...(configCompanyPrefix ? { companyPrefix: configCompanyPrefix } : {}),
     ...(configSkillsHome ? { skillsHome: configSkillsHome } : {}),

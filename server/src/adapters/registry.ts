@@ -200,6 +200,7 @@ const kiroLocalAdapter: ServerAdapterModule = {
   listSkills: listKiroSkills,
   syncSkills: syncKiroSkills,
   sessionCodec: kiroSessionCodec,
+  sessionManagement: getAdapterSessionManagement("kiro_local") ?? undefined,
   models: kiroModels,
   listModels: listKiroModels,
   supportsLocalAgentJwt: true,
