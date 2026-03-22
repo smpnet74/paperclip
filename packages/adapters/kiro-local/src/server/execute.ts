@@ -216,14 +216,31 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
   const workspaceContext = parseObject(context.paperclipWorkspace);
   const workspaceCwd = asString(workspaceContext.cwd, "");
-  const workspaceId = asString(workspaceContext.workspaceId, "");
-  const workspaceRepoUrl = asString(workspaceContext.repoUrl, "");
-  const workspaceRepoRef = asString(workspaceContext.repoRef, "");
-  const agentHome = asString(workspaceContext.agentHome, "");
+  const workspaceSource = asString(workspaceContext.source, "");
+  const workspaceStrategy = asString(workspaceContext.strategy, "");
+  const workspaceId = asString(workspaceContext.workspaceId, "") || null;
+  const workspaceRepoUrl = asString(workspaceContext.repoUrl, "") || null;
+  const workspaceRepoRef = asString(workspaceContext.repoRef, "") || null;
+  const workspaceBranch = asString(workspaceContext.branchName, "") || null;
+  const workspaceWorktreePath = asString(workspaceContext.worktreePath, "") || null;
+  const agentHome = asString(workspaceContext.agentHome, "") || null;
   const configuredCwd = asString(config.cwd, "");
   const cwd = workspaceCwd || configuredCwd || process.cwd();
 
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
+
+  // Warn about session bleed risk when no workspace strategy is configured.
+  // Kiro resumes sessions by CWD, so concurrent tasks targeting the same agent+CWD
+  // will share a Kiro session unless each task gets its own worktree.
+  if (!workspaceStrategy) {
+    await onLog(
+      "stdout",
+      `[paperclip] Warning: no workspaceStrategy configured for kiro-local adapter. ` +
+        `Concurrent tasks targeting the same CWD will share a Kiro session, ` +
+        `risking data leaks between tasks. Configure workspaceStrategy: { type: "git_worktree" } ` +
+        `in the agent's adapterConfig to enable per-task isolation.\n`,
+    );
+  }
 
   // Inject Kiro skills before execution
   const configCompanyPrefix = asString(config.companyPrefix, "").trim().toLowerCase();
@@ -268,9 +285,13 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   if (approvalStatus) env.PAPERCLIP_APPROVAL_STATUS = approvalStatus;
   if (linkedIssueIds.length > 0) env.PAPERCLIP_LINKED_ISSUE_IDS = linkedIssueIds.join(",");
   if (workspaceCwd) env.PAPERCLIP_WORKSPACE_CWD = workspaceCwd;
+  if (workspaceSource) env.PAPERCLIP_WORKSPACE_SOURCE = workspaceSource;
+  if (workspaceStrategy) env.PAPERCLIP_WORKSPACE_STRATEGY = workspaceStrategy;
   if (workspaceId) env.PAPERCLIP_WORKSPACE_ID = workspaceId;
   if (workspaceRepoUrl) env.PAPERCLIP_WORKSPACE_REPO_URL = workspaceRepoUrl;
   if (workspaceRepoRef) env.PAPERCLIP_WORKSPACE_REPO_REF = workspaceRepoRef;
+  if (workspaceBranch) env.PAPERCLIP_WORKSPACE_BRANCH = workspaceBranch;
+  if (workspaceWorktreePath) env.PAPERCLIP_WORKSPACE_WORKTREE_PATH = workspaceWorktreePath;
   if (agentHome) env.AGENT_HOME = agentHome;
 
   for (const [key, value] of Object.entries(envConfig)) {
@@ -428,6 +449,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
           ...(workspaceId ? { workspaceId } : {}),
           ...(workspaceRepoUrl ? { repoUrl: workspaceRepoUrl } : {}),
           ...(workspaceRepoRef ? { repoRef: workspaceRepoRef } : {}),
+          ...(workspaceWorktreePath ? { worktreePath: workspaceWorktreePath } : {}),
+          ...(workspaceBranch ? { branchName: workspaceBranch } : {}),
         } as Record<string, unknown>)
       : null;
 

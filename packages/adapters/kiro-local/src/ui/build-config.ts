@@ -124,5 +124,14 @@ export function buildAdapterConfig(values: CreateConfigValues): Record<string, u
     config.extraArgs = parseCommaArgs(values.extraArgs);
   }
 
+  if (values.workspaceStrategyType === "git_worktree") {
+    config.workspaceStrategy = {
+      type: "git_worktree",
+      ...(values.workspaceBaseRef ? { baseRef: values.workspaceBaseRef } : {}),
+      ...(values.workspaceBranchTemplate ? { branchTemplate: values.workspaceBranchTemplate } : {}),
+      ...(values.worktreeParentDir ? { worktreeParentDir: values.worktreeParentDir } : {}),
+    };
+  }
+
   return config;
 }

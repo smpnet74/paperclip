@@ -64,6 +64,23 @@ Don't use when:
 | \`env\` | Environment variable overrides | \`{}\` |
 | \`companyPrefix\` | Namespace prefix for skill directories (e.g. \`"dem"\` → \`dem--paperclip\`). Prevents cross-company skill collisions in \`~/.kiro/skills/\`. | Empty (no prefix) |
 | \`skillsHome\` | Override path for Kiro skills directory. Useful for full isolation between companies. | \`~/.kiro/skills\` |
+| \`workspaceStrategy\` | Execution workspace strategy (object) | Not set |
+
+### Workspace Strategy
+
+\`workspaceStrategy\` configures per-task workspace isolation. Currently supports:
+
+\`\`\`json
+{
+  "type": "git_worktree",
+  "baseRef": "main",
+  "branchTemplate": "{{identifier}}-{{slug}}",
+  "worktreeParentDir": ".paperclip/worktrees"
+}
+\`\`\`
+
+All sub-fields are optional. When configured, each task runs in an isolated git worktree,
+preventing session bleed between concurrent tasks targeting the same agent.
 
 ## Models (kiro-cli v1.28.0+)
 
